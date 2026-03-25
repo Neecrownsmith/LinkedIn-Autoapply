@@ -530,181 +530,191 @@ def _render_resume_html(resume_data: dict[str, Any]) -> str:
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{_escape_html(full_name)} - Resume</title>
   <style>
-        * {{
-            box-sizing: border-box;
-        }}
-    @page {{
-            size: A4 portrait;
-            margin: 16mm 17mm;
+    * {{
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }}
+    html, body {{
+      width: 100%;
+      height: 100%;
     }}
     body {{
-      margin: 0;
-            color: #111111;
-            font-family: "Times New Roman", "Georgia", serif;
-            font-size: 11pt;
-            line-height: 1.32;
-            background: #ffffff;
-            print-color-adjust: exact;
-            -webkit-print-color-adjust: exact;
+      margin: 45px 48px;
+      color: #111111;
+      font-family: Times New Roman, Georgia, serif;
+      font-size: 11pt;
+      line-height: 1.4;
+      background: #ffffff;
     }}
     .page {{
-            width: 100%;
-            max-width: 176mm;
-            margin: 0 auto;
+      width: 100%;
     }}
     h1 {{
-            margin: 0;
-            font-size: 23pt;
-            font-weight: bold;
-            text-transform: uppercase;
-            text-align: center;
+      margin: 0 0 0 0;
+      font-size: 23pt;
+      font-weight: bold;
+      text-transform: uppercase;
+      text-align: center;
+      line-height: 1.0;
     }}
     .headline {{
-            margin-top: 2px;
-            text-align: center;
-            font-size: 20pt;
+      margin-top: 3px;
+      text-align: center;
+      font-size: 20pt;
       font-weight: bold;
+      line-height: 1.2;
     }}
     .header-contact {{
-            margin-top: 6px;
-            text-align: center;
-            font-size: 11pt;
+      margin-top: 6px;
+      text-align: center;
+      font-size: 11pt;
+      line-height: 1.4;
     }}
     .section {{
-            margin-top: 14px;
-            page-break-inside: avoid;
+      margin-top: 14px;
     }}
     .section-title {{
-            font-size: 34px;
-            font-size: 15.5pt;
+      font-size: 16pt;
       font-weight: bold;
-            letter-spacing: 0.3px;
       text-transform: uppercase;
-            border-bottom: 2px solid #404040;
-            padding-bottom: 3px;
-            margin-bottom: 7px;
-            page-break-after: avoid;
+      border-bottom: 2px solid #404040;
+      padding-bottom: 3px;
+      margin-bottom: 8px;
+      line-height: 1.2;
     }}
     .summary {{
       margin: 0;
       text-align: justify;
+      font-size: 11pt;
+      line-height: 1.4;
     }}
-        .exp-item {{
-                        margin-bottom: 12px;
-                        page-break-inside: avoid;
-        }}
-        .exp-item + .exp-item {{
-                        border-top: 1px solid #d7d7d7;
-                        padding-top: 10px;
+    .exp-item {{
+      margin-bottom: 14px;
     }}
     .exp-head {{
       width: 100%;
       border-collapse: collapse;
-                        margin-bottom: 0;
-        }}
-        .exp-company-row {{
-                        margin-top: 0;
-        }}
-        .exp-company {{
-            font-size: 14.2pt;
-            font-weight: bold;
-            width: 62%;
-            vertical-align: top;
-                        padding-bottom: 0;
+      margin: 0;
+      padding: 0;
+    }}
+    .exp-company {{
+      font-size: 14pt;
+      font-weight: bold;
+      width: 62%;
+      vertical-align: top;
+      padding: 0;
+      line-height: 1.3;
     }}
     .exp-role {{
       font-weight: bold;
-            font-size: 12.2pt;
-            width: 62%;
+      font-size: 12pt;
+      width: 62%;
       vertical-align: top;
       padding-right: 8px;
-                        padding-top: 0;
+      padding: 0;
+      line-height: 1.3;
     }}
-        .exp-right {{
-            font-size: 12pt;
-            font-weight: bold;
+    .exp-right {{
+      font-size: 12pt;
+      font-weight: bold;
       text-align: right;
-            width: 38%;
+      width: 38%;
       vertical-align: top;
       white-space: nowrap;
-                        padding-top: 0;
+      padding: 0;
+      line-height: 1.3;
     }}
     ul {{
-            margin: 2px 0 0 0;
-            padding-left: 22px;
+      margin: 3px 0 0 25px;
+      padding: 0;
     }}
     li {{
-            margin-bottom: 3px;
+      margin-bottom: 3px;
+      font-size: 11pt;
+      line-height: 1.4;
     }}
-    .bullet-list li {{
-            font-size: 11.4pt;
+    .contact-list {{
+      margin: 0;
+      padding: 0;
+      list-style: none;
     }}
-        .project-item {{
-            margin-bottom: 8px;
-        }}
-        .project-name {{
-            font-weight: bold;
-            font-size: 11.6pt;
-            margin-bottom: 2px;
-        }}
-        .additional-line {{
-            margin: 0 0 2px 0;
-            font-size: 10.8pt;
-            line-height: 1.2;
+    .contact-list li {{
+      margin-bottom: 2px;
     }}
-        .additional-label {{
-            font-weight: bold;
-        }}
-        .edu-item {{
-            margin-bottom: 9px;
-            page-break-inside: avoid;
-        }}
-        .edu-head {{
-            width: 100%;
-            border-collapse: collapse;
-        }}
-        .edu-school {{
-            width: 72%;
-            vertical-align: top;
-            font-weight: bold;
-            font-size: 12.4pt;
-            letter-spacing: 0.2px;
-        }}
-        .edu-location {{
-            width: 28%;
-            text-align: right;
-            vertical-align: top;
-            white-space: nowrap;
-            font-size: 11.3pt;
-            font-weight: bold;
-        }}
-        .edu-degree {{
-            width: 72%;
-            vertical-align: top;
-            font-style: italic;
-            font-weight: bold;
-            font-size: 11pt;
-        }}
-        .edu-date {{
-            width: 28%;
-            text-align: right;
-            vertical-align: top;
-            white-space: nowrap;
-            font-size: 11.3pt;
-            font-weight: bold;
-        }}
-        @media print {{
-            body {{
-                background: #ffffff;
-            }}
-            .page {{
-                max-width: none;
-                margin: 0;
-            }}
-        }}
+    .project-item {{
+      margin-bottom: 8px;
+    }}
+    .project-name {{
+      font-weight: bold;
+      font-size: 12pt;
+      margin-bottom: 3px;
+      line-height: 1.3;
+    }}
+    .additional-line {{
+      margin: 0 0 3px 0;
+      font-size: 11pt;
+      line-height: 1.4;
+    }}
+    .additional-label {{
+      font-weight: bold;
+    }}
+    .edu-item {{
+      margin-bottom: 9px;
+    }}
+    .edu-head {{
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0;
+      padding: 0;
+    }}
+    .edu-school {{
+      width: 72%;
+      vertical-align: top;
+      font-weight: bold;
+      font-size: 12pt;
+      padding: 0;
+      line-height: 1.3;
+    }}
+    .edu-location {{
+      width: 28%;
+      text-align: right;
+      vertical-align: top;
+      white-space: nowrap;
+      font-size: 11pt;
+      font-weight: bold;
+      padding: 0;
+      line-height: 1.3;
+    }}
+    .edu-degree {{
+      width: 72%;
+      vertical-align: top;
+      font-style: italic;
+      font-weight: bold;
+      font-size: 11pt;
+      padding: 0;
+      line-height: 1.3;
+    }}
+    .edu-date {{
+      width: 28%;
+      text-align: right;
+      vertical-align: top;
+      white-space: nowrap;
+      font-size: 11pt;
+      font-weight: bold;
+      padding: 0;
+      line-height: 1.3;
+    }}
+    table {{
+      border-collapse: collapse;
+      width: 100%;
+    }}
+    td {{
+      padding: 0;
+      margin: 0;
+    }}
   </style>
 </head>
 <body>
@@ -712,8 +722,7 @@ def _render_resume_html(resume_data: dict[str, Any]) -> str:
     <h1>{_escape_html(full_name)}</h1>
     {f'<div class="headline">{_escape_html(headline)}</div>' if headline else ''}
     {f'<div class="header-contact">{header_contacts}</div>' if header_contacts else ''}
-
-        {main_html}
+    {main_html}
   </div>
 </body>
 </html>
@@ -791,10 +800,6 @@ def _build_fallback_lines(resume_data: dict[str, Any]) -> list[str]:
 
 
 def _try_render_html_to_pdf(html_content: str, out_path: Path) -> bool:
-    # Prefer browser rendering for highest fidelity with authored HTML/CSS.
-    if _try_render_with_playwright(html_content, out_path):
-        return True
-
     try:
         pisa_mod = importlib.import_module("xhtml2pdf.pisa")
         create_pdf = getattr(pisa_mod, "CreatePDF")
@@ -806,29 +811,6 @@ def _try_render_html_to_pdf(html_content: str, out_path: Path) -> bool:
     except Exception:
         return False
 
-
-def _try_render_with_playwright(html_content: str, out_path: Path) -> bool:
-    try:
-        sync_api = importlib.import_module("playwright.sync_api")
-        playwright_fn = getattr(sync_api, "sync_playwright")
-
-        with playwright_fn() as p:
-            browser = p.chromium.launch(headless=True)
-            try:
-                page = browser.new_page()
-                page.set_content(html_content, wait_until="networkidle")
-                page.pdf(
-                    path=str(out_path),
-                    format="A4",
-                    print_background=True,
-                    prefer_css_page_size=True,
-                )
-            finally:
-                browser.close()
-
-        return out_path.exists() and out_path.stat().st_size > 0
-    except Exception:
-        return False
 
 
 def render_resume_pdf(resume_data: dict[str, Any], output_path: str) -> str:
