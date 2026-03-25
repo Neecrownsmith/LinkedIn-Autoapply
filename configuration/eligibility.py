@@ -43,4 +43,4 @@ require_visa_sponsorship = "Yes"  # "Yes", "No"
 willing_to_relocate = "Yes"  # "Yes", "No"
 willing_to_undergo_background_check = "Yes"  # "Yes", "No"
 willing_to_travel = "Yes"  # "Yes", "No"
-
+visa_sponsorship = "Yes"  # "Yes", "No"
