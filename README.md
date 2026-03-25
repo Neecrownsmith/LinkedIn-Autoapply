@@ -1,4 +1,5 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 # LinkedIn Auto-Apply Bot
 
 Python automation project for LinkedIn Easy Apply with AI-assisted form answering and tailored resume generation.
@@ -465,3 +466,6 @@ For issues and questions:
  
  
 >>>>>>> b8034c46f5e65e9701ae012585609b22250ae343
+=======
+# read mme
+>>>>>>> fdc612105a09530712d4cb13934b418a815dd979
