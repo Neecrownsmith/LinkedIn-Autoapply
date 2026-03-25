@@ -530,191 +530,180 @@ def _render_resume_html(resume_data: dict[str, Any]) -> str:
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{_escape_html(full_name)} - Resume</title>
   <style>
-    * {{
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }}
-    html, body {{
-      width: 100%;
-      height: 100%;
+        * {{
+            box-sizing: border-box;
+        }}
+    @page {{
+            size: A4 portrait;
+            margin: 16mm 17mm;
     }}
     body {{
-      margin: 45px 48px;
-      color: #111111;
-      font-family: Times New Roman, Georgia, serif;
-      font-size: 11pt;
-      line-height: 1.4;
-      background: #ffffff;
+      margin: 0;
+            color: #111111;
+            font-family: "Times New Roman", "Georgia", serif;
+            font-size: 11pt;
+            line-height: 1.32;
+            background: #ffffff;
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
     }}
     .page {{
-      width: 100%;
+            width: 100%;
+            max-width: 176mm;
+            margin: 0 auto;
     }}
     h1 {{
-      margin: 0 0 0 0;
-      font-size: 23pt;
-      font-weight: bold;
-      text-transform: uppercase;
-      text-align: center;
-      line-height: 1.0;
+            margin: 0;
+            font-size: 23pt;
+            font-weight: bold;
+            text-transform: uppercase;
+            text-align: center;
     }}
     .headline {{
-      margin-top: 3px;
-      text-align: center;
-      font-size: 20pt;
+            margin-top: 2px;
+            text-align: center;
+            font-size: 20pt;
       font-weight: bold;
-      line-height: 1.2;
     }}
     .header-contact {{
-      margin-top: 6px;
-      text-align: center;
-      font-size: 11pt;
-      line-height: 1.4;
+            margin-top: 6px;
+            text-align: center;
+            font-size: 11pt;
     }}
     .section {{
-      margin-top: 14px;
+            margin-top: 14px;
+            page-break-inside: avoid;
     }}
     .section-title {{
-      font-size: 16pt;
+            font-size: 34px;
+            font-size: 15.5pt;
       font-weight: bold;
+            letter-spacing: 0.3px;
       text-transform: uppercase;
-      border-bottom: 2px solid #404040;
-      padding-bottom: 3px;
-      margin-bottom: 8px;
-      line-height: 1.2;
+            border-bottom: 2px solid #404040;
+            padding-bottom: 3px;
+            margin-bottom: 7px;
+            page-break-after: avoid;
     }}
     .summary {{
       margin: 0;
       text-align: justify;
-      font-size: 11pt;
-      line-height: 1.4;
     }}
-    .exp-item {{
-      margin-bottom: 14px;
+        .exp-item {{
+                        margin-bottom: 16px;
+                        page-break-inside: avoid;
+        }}
+        .exp-item + .exp-item {{
+                        margin-top: 4px;
     }}
     .exp-head {{
       width: 100%;
       border-collapse: collapse;
-      margin: 0;
-      padding: 0;
-    }}
-    .exp-company {{
-      font-size: 14pt;
-      font-weight: bold;
-      width: 62%;
-      vertical-align: top;
-      padding: 0;
-      line-height: 1.3;
+                        margin-bottom: 0;
+        }}
+        .exp-company-row {{
+                        margin-top: 0;
+        }}
+        .exp-company {{
+            font-size: 14.2pt;
+            font-weight: bold;
+            width: 62%;
+            vertical-align: top;
+                        padding-bottom: 0;
     }}
     .exp-role {{
       font-weight: bold;
-      font-size: 12pt;
-      width: 62%;
+            font-size: 12.2pt;
+            width: 62%;
       vertical-align: top;
       padding-right: 8px;
-      padding: 0;
-      line-height: 1.3;
+                        padding-top: 0;
     }}
-    .exp-right {{
-      font-size: 12pt;
-      font-weight: bold;
+        .exp-right {{
+            font-size: 12pt;
+            font-weight: bold;
       text-align: right;
-      width: 38%;
+            width: 38%;
       vertical-align: top;
       white-space: nowrap;
-      padding: 0;
-      line-height: 1.3;
+                        padding-top: 0;
     }}
     ul {{
-      margin: 3px 0 0 25px;
-      padding: 0;
+            margin: 2px 0 0 0;
+            padding-left: 22px;
     }}
     li {{
-      margin-bottom: 3px;
-      font-size: 11pt;
-      line-height: 1.4;
+            margin-bottom: 3px;
     }}
-    .contact-list {{
-      margin: 0;
-      padding: 0;
-      list-style: none;
+    .bullet-list li {{
+            font-size: 11.4pt;
     }}
-    .contact-list li {{
-      margin-bottom: 2px;
+        .project-item {{
+            margin-bottom: 8px;
+        }}
+        .project-name {{
+            font-weight: bold;
+            font-size: 11.6pt;
+            margin-bottom: 2px;
+        }}
+        .additional-line {{
+            margin: 0 0 2px 0;
+            font-size: 10.8pt;
+            line-height: 1.2;
     }}
-    .project-item {{
-      margin-bottom: 8px;
-    }}
-    .project-name {{
-      font-weight: bold;
-      font-size: 12pt;
-      margin-bottom: 3px;
-      line-height: 1.3;
-    }}
-    .additional-line {{
-      margin: 0 0 3px 0;
-      font-size: 11pt;
-      line-height: 1.4;
-    }}
-    .additional-label {{
-      font-weight: bold;
-    }}
-    .edu-item {{
-      margin-bottom: 9px;
-    }}
-    .edu-head {{
-      width: 100%;
-      border-collapse: collapse;
-      margin: 0;
-      padding: 0;
-    }}
-    .edu-school {{
-      width: 72%;
-      vertical-align: top;
-      font-weight: bold;
-      font-size: 12pt;
-      padding: 0;
-      line-height: 1.3;
-    }}
-    .edu-location {{
-      width: 28%;
-      text-align: right;
-      vertical-align: top;
-      white-space: nowrap;
-      font-size: 11pt;
-      font-weight: bold;
-      padding: 0;
-      line-height: 1.3;
-    }}
-    .edu-degree {{
-      width: 72%;
-      vertical-align: top;
-      font-style: italic;
-      font-weight: bold;
-      font-size: 11pt;
-      padding: 0;
-      line-height: 1.3;
-    }}
-    .edu-date {{
-      width: 28%;
-      text-align: right;
-      vertical-align: top;
-      white-space: nowrap;
-      font-size: 11pt;
-      font-weight: bold;
-      padding: 0;
-      line-height: 1.3;
-    }}
-    table {{
-      border-collapse: collapse;
-      width: 100%;
-    }}
-    td {{
-      padding: 0;
-      margin: 0;
-    }}
+        .additional-label {{
+            font-weight: bold;
+        }}
+        .edu-item {{
+            margin-bottom: 9px;
+            page-break-inside: avoid;
+        }}
+        .edu-head {{
+            width: 100%;
+            border-collapse: collapse;
+        }}
+        .edu-school {{
+            width: 72%;
+            vertical-align: top;
+            font-weight: bold;
+            font-size: 12.4pt;
+            letter-spacing: 0.2px;
+        }}
+        .edu-location {{
+            width: 28%;
+            text-align: right;
+            vertical-align: top;
+            white-space: nowrap;
+            font-size: 11.3pt;
+            font-weight: bold;
+        }}
+        .edu-degree {{
+            width: 72%;
+            vertical-align: top;
+            font-style: italic;
+            font-weight: bold;
+            font-size: 11pt;
+        }}
+        .edu-date {{
+            width: 28%;
+            text-align: right;
+            vertical-align: top;
+            white-space: nowrap;
+            font-size: 11.3pt;
+            font-weight: bold;
+        }}
+        @media print {{
+            body {{
+                background: #ffffff;
+            }}
+            .page {{
+                max-width: none;
+                margin: 0;
+            }}
+        }}
   </style>
 </head>
 <body>
@@ -722,7 +711,8 @@ def _render_resume_html(resume_data: dict[str, Any]) -> str:
     <h1>{_escape_html(full_name)}</h1>
     {f'<div class="headline">{_escape_html(headline)}</div>' if headline else ''}
     {f'<div class="header-contact">{header_contacts}</div>' if header_contacts else ''}
-    {main_html}
+
+        {main_html}
   </div>
 </body>
 </html>
