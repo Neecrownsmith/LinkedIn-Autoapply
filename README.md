@@ -3,7 +3,6 @@
 A comprehensive Python-based LinkedIn automation toolkit that provides safe, efficient, and intelligent automation for various LinkedIn activities.
 
 ## 🚀 Features
-
 ### Core Automation
 
 - **Secure Login**: Automated login with credential management
@@ -300,5 +299,6 @@ For issues and questions:
 ---
 
 **Disclaimer**: This tool is for educational purposes only. Users are responsible for complying with LinkedIn's Terms of Service and applicable laws. Use at your own risk.
-#   L i n k e d I n - A u t o a p p l y  
+#   L i n k e d I n - A u t o a p p l y 
+ 
  
