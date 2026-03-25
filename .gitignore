@@ -13,8 +13,7 @@ env/
 .env.*
 !.env.example
 
-# Local auth/session artifacts
-linkedin_cookies.json
+
 
 # Generated resume outputs
 resume/generated_resumes/
