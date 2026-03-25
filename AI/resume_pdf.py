@@ -40,6 +40,17 @@ def _escape_html(value: Any) -> str:
     return html.escape(_text(value), quote=True)
 
 
+def _escape_html_with_soft_breaks(value: Any) -> str:
+    escaped = _escape_html(value)
+    # Allow long URLs/identifiers to wrap in xhtml2pdf instead of clipping.
+    return (
+        escaped.replace("/", "/&#8203;")
+        .replace(".", ".&#8203;")
+        .replace("-", "-&#8203;")
+        .replace("_", "_&#8203;")
+    )
+
+
 def _escape_pdf_text(text: str) -> str:
     return (
         (text or "")
@@ -434,7 +445,7 @@ def _render_resume_html(resume_data: dict[str, Any]) -> str:
         role_or_default = role or "Role"
 
         bullets = item.get("bullets") if isinstance(item.get("bullets"), list) else []
-        bullet_items = "".join(f"<li>{_escape_html(line)}</li>" for line in bullets)
+        bullet_items = "".join(f"<li>- {_escape_html_with_soft_breaks(line)}</li>" for line in bullets)
         bullets_html = f"<ul class=\"bullet-list\">{bullet_items}</ul>" if bullet_items else ""
 
         experience_blocks.append(
@@ -457,7 +468,9 @@ def _render_resume_html(resume_data: dict[str, Any]) -> str:
     for project in project_items_data:
         project_name = _text(project.get("name"))
         desc_bullets = _to_lines(project.get("description_bullets"))
-        bullet_items = "".join(f"<li>{_escape_html(line)}</li>" for line in desc_bullets)
+        bullet_items = "".join(
+            f"<li>- {_escape_html_with_soft_breaks(line)}</li>" for line in desc_bullets
+        )
         bullet_list = f"<ul class=\"bullet-list\">{bullet_items}</ul>" if bullet_items else ""
         name_html = f"<div class=\"project-name\">{_escape_html(project_name)}</div>" if project_name else ""
         project_blocks.append(
@@ -501,7 +514,7 @@ def _render_resume_html(resume_data: dict[str, Any]) -> str:
         "".join(education_rows),
     )
 
-    contact_items = "".join(f"<li>{_escape_html(line)}</li>" for line in contacts)
+    contact_items = "".join(f"<li>{_escape_html_with_soft_breaks(line)}</li>" for line in contacts)
     contact_html = section(
         "Contact",
         f"<ul class=\"contact-list\">{contact_items}</ul>" if contact_items else "",
@@ -521,7 +534,7 @@ def _render_resume_html(resume_data: dict[str, Any]) -> str:
         "".join(additional_info_parts),
     )
 
-    header_contacts = " • ".join(_escape_html(item) for item in contacts[:4])
+    header_contacts = " | ".join(_escape_html_with_soft_breaks(item) for item in contacts[:4])
 
     main_sections = [summary_html, experience_html, projects_html, education_html, additional_info_html]
     main_html = "".join(part for part in main_sections if part)
@@ -530,179 +543,175 @@ def _render_resume_html(resume_data: dict[str, Any]) -> str:
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{_escape_html(full_name)} - Resume</title>
   <style>
-        * {{
-            box-sizing: border-box;
-        }}
-    @page {{
+        @page {{
             size: A4 portrait;
-            margin: 16mm 17mm;
-    }}
-    body {{
-      margin: 0;
+            margin: 14mm 14mm 12mm 14mm;
+        }}
+        body {{
+            margin: 0;
             color: #111111;
-            font-family: "Times New Roman", "Georgia", serif;
+            font-family: Times New Roman, Georgia, serif;
             font-size: 11pt;
             line-height: 1.32;
             background: #ffffff;
-            print-color-adjust: exact;
-            -webkit-print-color-adjust: exact;
-    }}
-    .page {{
+            word-wrap: break-word;
+        }}
+        .page {{
             width: 100%;
-            max-width: 176mm;
-            margin: 0 auto;
-    }}
-    h1 {{
+        }}
+        h1 {{
             margin: 0;
-            font-size: 23pt;
+            font-size: 15pt;
+            font-weight: bold;
+            text-align: left;
+            line-height: 1.1;
+        }}
+        .headline {{
+            margin-top: 2px;
+            text-align: left;
+            font-size: 10.9pt;
+            font-weight: bold;
+            line-height: 1.2;
+        }}
+        .header-contact {{
+            margin-top: 2px;
+            text-align: left;
+            font-size: 9.8pt;
+            line-height: 1.2;
+            word-wrap: break-word;
+        }}
+        .section {{
+            margin-top: 14px;
+        }}
+        .section-title {{
+            font-size: 16pt;
             font-weight: bold;
             text-transform: uppercase;
-            text-align: center;
-    }}
-    .headline {{
-            margin-top: 2px;
-            text-align: center;
-            font-size: 20pt;
-      font-weight: bold;
-    }}
-    .header-contact {{
-            margin-top: 6px;
-            text-align: center;
-            font-size: 11pt;
-    }}
-    .section {{
-            margin-top: 14px;
-            page-break-inside: avoid;
-    }}
-    .section-title {{
-            font-size: 34px;
-            font-size: 15.5pt;
-      font-weight: bold;
-            letter-spacing: 0.3px;
-      text-transform: uppercase;
             border-bottom: 2px solid #404040;
-            padding-bottom: 3px;
-            margin-bottom: 7px;
-            page-break-after: avoid;
-    }}
-    .summary {{
-      margin: 0;
-      text-align: justify;
-    }}
+            padding-bottom: 2px;
+            margin-bottom: 6px;
+            line-height: 1.1;
+        }}
+        .summary {{
+            margin: 0;
+            text-align: left;
+            word-wrap: break-word;
+        }}
         .exp-item {{
-                        margin-bottom: 16px;
-                        page-break-inside: avoid;
+            margin-bottom: 10px;
         }}
-        .exp-item + .exp-item {{
-                        margin-top: 4px;
-    }}
-    .exp-head {{
-      width: 100%;
-      border-collapse: collapse;
-                        margin-bottom: 0;
-        }}
-        .exp-company-row {{
-                        margin-top: 0;
+        .exp-head {{
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            margin: 0;
         }}
         .exp-company {{
-            font-size: 14.2pt;
+            font-size: 13.2pt;
             font-weight: bold;
             width: 62%;
             vertical-align: top;
-                        padding-bottom: 0;
-    }}
-    .exp-role {{
-      font-weight: bold;
-            font-size: 12.2pt;
-            width: 62%;
-      vertical-align: top;
-      padding-right: 8px;
-                        padding-top: 0;
-    }}
-        .exp-right {{
-            font-size: 12pt;
+            padding: 0;
+            word-wrap: break-word;
+        }}
+        .exp-role {{
             font-weight: bold;
-      text-align: right;
+            font-size: 11.5pt;
+            width: 62%;
+            vertical-align: top;
+            padding: 0;
+            word-wrap: break-word;
+        }}
+        .exp-right {{
+            font-size: 11pt;
+            font-weight: bold;
+            text-align: right;
             width: 38%;
-      vertical-align: top;
-      white-space: nowrap;
-                        padding-top: 0;
-    }}
-    ul {{
+            vertical-align: top;
+            padding: 0;
+            word-wrap: break-word;
+        }}
+        .bullet-list {{
             margin: 2px 0 0 0;
-            padding-left: 22px;
-    }}
-    li {{
-            margin-bottom: 3px;
-    }}
-    .bullet-list li {{
-            font-size: 11.4pt;
-    }}
+            padding: 0;
+            list-style: none;
+        }}
+        .bullet-list li {{
+            margin: 0 0 1px 0;
+            padding: 0;
+            font-size: 10.8pt;
+            line-height: 1.25;
+            word-wrap: break-word;
+        }}
         .project-item {{
             margin-bottom: 8px;
         }}
         .project-name {{
             font-weight: bold;
-            font-size: 11.6pt;
+            font-size: 11.3pt;
             margin-bottom: 2px;
         }}
         .additional-line {{
             margin: 0 0 2px 0;
             font-size: 10.8pt;
             line-height: 1.2;
-    }}
+            word-wrap: break-word;
+        }}
         .additional-label {{
             font-weight: bold;
         }}
         .edu-item {{
-            margin-bottom: 9px;
-            page-break-inside: avoid;
+            margin-bottom: 6px;
         }}
         .edu-head {{
             width: 100%;
             border-collapse: collapse;
+            table-layout: fixed;
         }}
         .edu-school {{
             width: 72%;
             vertical-align: top;
             font-weight: bold;
-            font-size: 12.4pt;
-            letter-spacing: 0.2px;
+            font-size: 12pt;
+            word-wrap: break-word;
         }}
         .edu-location {{
             width: 28%;
             text-align: right;
             vertical-align: top;
-            white-space: nowrap;
-            font-size: 11.3pt;
+            font-size: 10.8pt;
             font-weight: bold;
+            word-wrap: break-word;
         }}
         .edu-degree {{
             width: 72%;
             vertical-align: top;
             font-style: italic;
             font-weight: bold;
-            font-size: 11pt;
+            font-size: 10.8pt;
+            word-wrap: break-word;
         }}
         .edu-date {{
             width: 28%;
             text-align: right;
             vertical-align: top;
-            white-space: nowrap;
-            font-size: 11.3pt;
+            font-size: 10.8pt;
             font-weight: bold;
+            word-wrap: break-word;
         }}
-        @media print {{
-            body {{
-                background: #ffffff;
-            }}
-            .page {{
-                max-width: none;
-                margin: 0;
-            }}
+        .contact-list {{
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }}
+        .contact-list li {{
+            margin-bottom: 2px;
+            word-wrap: break-word;
+        }}
+        td {{
+            -pdf-keep-in-frame-mode: shrink;
         }}
   </style>
 </head>
@@ -795,9 +804,11 @@ def _try_render_html_to_pdf(html_content: str, out_path: Path) -> bool:
         create_pdf = getattr(pisa_mod, "CreatePDF")
         with out_path.open("wb") as pdf_file:
             result = create_pdf(src=html_content, dest=pdf_file, encoding="utf-8")
-        if getattr(result, "err", 1):
-            return False
-        return out_path.exists() and out_path.stat().st_size > 0
+        # xhtml2pdf may report non-zero `err` for unsupported CSS while still
+        # producing a valid styled PDF. Prefer the generated file when present.
+        if out_path.exists() and out_path.stat().st_size > 0:
+            return True
+        return getattr(result, "err", 1) == 0
     except Exception:
         return False
 
