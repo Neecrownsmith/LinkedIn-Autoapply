@@ -85,7 +85,7 @@ class LinkedInJobBot:
 
             options.add_experimental_option("excludeSwitches", ["enable-automation"])
             options.add_experimental_option('useAutomationExtension', False)
-            options.add_experimental_option("detach", True)
+            # options.add_experimental_option("detach", True)
 
             try:
                 # Prefer Selenium Manager (built into Selenium 4.6+)
@@ -2105,7 +2105,13 @@ class LinkedInJobBot:
                 return False
         except Exception as e:
             logger.info(f"Easy Apply button not found for job {job_id}: {str(e)}")
-            return False
+            return False,
+
+        finally:
+            logger.info(f"Finished apply_job for job {job_id}.")
+            logger.info("Closing driver...")
+            self.driver.quit()
+            logger.info("Driver closed.")
 
 if __name__ == "__main__":
 
