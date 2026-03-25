@@ -213,12 +213,57 @@ class LinkedInJobBot:
                 return False
 
             # Heuristic: look for signs of the signed-in feed UI
-            if "feed" in current_url or "mynetwork" in current_url:
-                if "global-nav" in page_source or "me-wvmp-link" in page_source:
-                    logger.info("Already logged in via cookies")
-                    return True
+            # Check if we're on a feed/network/home page (signed-in pages)
+            is_feed_page = "feed" in current_url or "mynetwork" in current_url or "/home" in current_url or "/dashboard" in current_url
+            
+            if is_feed_page:
+                # Wait for page to fully load with multiple possible indicators
+                try:
+                    # Try to find any logged-in indicator element (multiple fallbacks)
+                    login_indicators = [
+                        # Primary selectors for logged-in state
+                        "global-nav",
+                        "me-wvmp-link",
+                        "nav__button--secondary",
+                        "identity__profile-link",
+                        "artdeco-button__primary",
+                        "feed-identity-module",
+                        "scaffold-finite-scroll__content",
+                    ]
+                    
+                    found_indicator = False
+                    for indicator in login_indicators:
+                        if indicator in page_source:
+                            found_indicator = True
+                            logger.info(f"Detected login indicator: {indicator}")
+                            break
+                    
+                    # If no strict indicator found, use URL + page load as soft check
+                    if not found_indicator:
+                        # Wait for page content to load (any feed content or form fields)
+                        if any(x in page_source for x in ["feed-identity", "scaffold-layout", "artdeco-expandable-text", "jobs-search"]):
+                            found_indicator = True
+                            logger.info("Page appears loaded (content containers found)")
+                    
+                    if found_indicator:
+                        logger.info("Already logged in via cookies")
+                        return True
+                    else:
+                        # Final fallback: if URL is correct but page content unclear, 
+                        # assume logged in after 5-second wait (LinkedIn may be slow)
+                        logger.info("Feed URL correct but no indicators yet; waiting for page load...")
+                        self.random_delay(3, 5)
+                        page_source = self.driver.page_source.lower()
+                        if len(page_source) > 10000:  # Substantial page loaded
+                            logger.info("Substantial page content loaded; assuming logged in")
+                            return True
+                
+                except Exception as wait_error:
+                    logger.warning(f"Error during indicator check: {wait_error}")
+                    return False
+                
 
-            logger.info("Not logged in, cookies may be expired or invalid")
+            logger.info(f"Not logged in. Current URL: {current_url}, Checkpoint in URL: {'checkpoint' in current_url}")
             return False
         except Exception as e:
             logger.error(f"Error checking login status: {str(e)}")
