@@ -10,7 +10,7 @@ job_title = "Software Engineer"
 
 
 
-bot = LinkedInJobBot(headless=False)
+bot = LinkedInJobBot(headless=True)
 if bot.login():
 
     # Example: Python developer in UK (any work type, easy apply only)
