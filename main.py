@@ -1,12 +1,18 @@
 from job_bot import LinkedInJobBot
 import logging
+import random
 
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-job_title = "Software Engineer"
+job_list = ["Software Engineer", "Python Developer", "Data Scientist", 
+            "Machine Learning Engineer", "Backend Developer"
+            "AI Engineer", "Data Analyst", "Full Stack Developer",
+            "Django Developer"]
+
+job_title = random.choice(job_list)
 
 
 
