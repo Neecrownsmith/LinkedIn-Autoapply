@@ -11,7 +11,8 @@ phone_number = '07033798637'
 email_address = 'adeniyifajemisin@gmail.com'
 preferred_name = 'Adeniyi Fajemisin'  # This is the name that will be used in the cover letter and resume. It can be different from the first name if you prefer to use a nickname or a different name.
 date_of_birth = '2003-04-21'  # Format: YYYY-MM-DD
-portfolio_website = 'https://adeniyifajemisin.github.io/'
+portfolio_website = None
+github_url = 'https://github.com/Neecrownsmith'
 linkedin_profile_url = 'https://linkedin.com/in/adeniyifajemisin'
 
 current_city = 'Lagos'
