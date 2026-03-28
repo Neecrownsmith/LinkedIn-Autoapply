@@ -19,6 +19,9 @@ if bot.login():
         selected_jobs = bot.select_jobs()
         logger.info(f"Selected Jobs: {selected_jobs}")
 
-    submitted = bot.apply_job(selected_jobs[0])  # Example job ID, replace with actual ID from search results
+    for job in selected_jobs:  
+        submitted = bot.apply_job(job)  # Example job ID, replace with actual ID from search results
+        if submitted:
+            break
 
     # print(f"Job Description: {job_description}")

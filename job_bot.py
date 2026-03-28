@@ -2047,7 +2047,7 @@ class LinkedInJobBot:
         """
         if not self.driver:
             logger.error("WebDriver is not initialized. Call login() first.")
-            return False, None
+            return False
 
         job_url = f"https://www.linkedin.com/jobs/search/?currentJobId={job_id}"
         logger.info(f"Navigating to job page: {job_url}")
@@ -2105,7 +2105,7 @@ class LinkedInJobBot:
                 return False
         except Exception as e:
             logger.info(f"Easy Apply button not found for job {job_id}: {str(e)}")
-            return False,
+            return False
 
         finally:
             logger.info(f"Finished apply_job for job {job_id}.")
