@@ -41,14 +41,9 @@ def _escape_html(value: Any) -> str:
 
 
 def _escape_html_with_soft_breaks(value: Any) -> str:
-    escaped = _escape_html(value)
-    # Allow long URLs/identifiers to wrap in xhtml2pdf instead of clipping.
-    return (
-        escaped.replace("/", "/&#8203;")
-        .replace(".", ".&#8203;")
-        .replace("-", "-&#8203;")
-        .replace("_", "_&#8203;")
-    )
+    # xhtml2pdf can render zero-width characters as black boxes in some fonts.
+    # Keep plain escaped HTML to avoid visual artifacts in generated PDFs.
+    return _escape_html(value)
 
 
 def _escape_pdf_text(text: str) -> str:
@@ -138,6 +133,8 @@ def _load_personal_fallback() -> dict[str, str]:
         "email_address",
         "phone_number",
         "linkedin_profile_url",
+        "github_url",
+        "github_profile_url",
         "portfolio_website",
         "current_city",
         "state",
@@ -155,6 +152,10 @@ def _load_personal_fallback() -> dict[str, str]:
 
 
 def _build_contact_items(resume_data: dict[str, Any]) -> list[str]:
+    return [value for _, value in _build_contact_entries(resume_data)]
+
+
+def _build_contact_entries(resume_data: dict[str, Any]) -> list[tuple[str, str]]:
     fallback = _load_personal_fallback()
     contact_data = resume_data.get("contact")
     contact_dict = contact_data if isinstance(contact_data, dict) else {}
@@ -174,30 +175,40 @@ def _build_contact_items(resume_data: dict[str, Any]) -> list[str]:
         resume_data.get("linkedin"),
         fallback.get("linkedin_profile_url"),
     )
+    github = _pick_first(
+        contact_dict.get("github"),
+        resume_data.get("github"),
+        resume_data.get("github_url"),
+        fallback.get("github_url"),
+        fallback.get("github_profile_url"),
+    )
     website = _pick_first(
         contact_dict.get("website"),
         resume_data.get("website"),
         fallback.get("portfolio_website"),
     )
-    location = _pick_first(
-        contact_dict.get("location"),
-        resume_data.get("location"),
-        " ".join(
-            part
-            for part in [
-                fallback.get("current_city", ""),
-                fallback.get("state", ""),
-                fallback.get("country", ""),
-            ]
-            if part
-        ),
-    )
+    entries: list[tuple[str, str]] = []
+    for label, value in [
+        ("email", email),
+        ("phone", phone),
+        ("linkedin", linkedin),
+        ("github", github),
+        ("website", website),
+    ]:
+        text = _text(value)
+        if text:
+            entries.append((label, text))
 
-    items: list[str] = []
-    for value in [email, phone, linkedin, website, location]:
-        if value:
-            items.append(value)
-    return items
+    # Remove duplicate values while preserving first occurrence and label order.
+    seen: set[str] = set()
+    unique_entries: list[tuple[str, str]] = []
+    for label, value in entries:
+        key = value.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        unique_entries.append((label, value))
+    return unique_entries
 
 
 def _normalize_experience(experience_items: Any) -> list[dict[str, Any]]:
@@ -411,7 +422,8 @@ def _render_resume_html(resume_data: dict[str, Any]) -> str:
     skills = _to_lines(resume_data.get("skills"))[:30]
     education_items_data = _normalize_education(resume_data.get("education"))[:10]
     project_items_data = _normalize_projects(resume_data.get("projects"))[:10]
-    contacts = _build_contact_items(resume_data)
+    contact_entries = _build_contact_entries(resume_data)
+    contacts = [value for _, value in contact_entries]
     additional_lines = _build_additional_lines(resume_data, skills)
     experience_items = _select_relevant_experience(
         resume_data,
@@ -445,7 +457,7 @@ def _render_resume_html(resume_data: dict[str, Any]) -> str:
         role_or_default = role or "Role"
 
         bullets = item.get("bullets") if isinstance(item.get("bullets"), list) else []
-        bullet_items = "".join(f"<li>- {_escape_html_with_soft_breaks(line)}</li>" for line in bullets)
+        bullet_items = "".join(f"<li>{_escape_html_with_soft_breaks(line)}</li>" for line in bullets)
         bullets_html = f"<ul class=\"bullet-list\">{bullet_items}</ul>" if bullet_items else ""
 
         experience_blocks.append(
@@ -462,14 +474,17 @@ def _render_resume_html(resume_data: dict[str, Any]) -> str:
             "</div>"
         )
 
-    experience_html = section("Professional Experience", "".join(experience_blocks))
+    experience_html = section(
+        "Professional Experience",
+        '<div class="exp-spacer">&nbsp;</div>'.join(experience_blocks),
+    )
 
     project_blocks: list[str] = []
     for project in project_items_data:
         project_name = _text(project.get("name"))
         desc_bullets = _to_lines(project.get("description_bullets"))
         bullet_items = "".join(
-            f"<li>- {_escape_html_with_soft_breaks(line)}</li>" for line in desc_bullets
+            f"<li>{_escape_html_with_soft_breaks(line)}</li>" for line in desc_bullets
         )
         bullet_list = f"<ul class=\"bullet-list\">{bullet_items}</ul>" if bullet_items else ""
         name_html = f"<div class=\"project-name\">{_escape_html(project_name)}</div>" if project_name else ""
@@ -534,7 +549,19 @@ def _render_resume_html(resume_data: dict[str, Any]) -> str:
         "".join(additional_info_parts),
     )
 
-    header_contacts = " | ".join(_escape_html_with_soft_breaks(item) for item in contacts[:4])
+    def format_header_contact_item(label: str, value: str) -> str:
+        text = _escape_html_with_soft_breaks(value)
+        return text
+
+    preferred_order = ["email", "phone", "linkedin", "github", "website"]
+    order_index = {label: idx for idx, label in enumerate(preferred_order)}
+    ordered_entries = sorted(
+        contact_entries,
+        key=lambda item: order_index.get(item[0], len(preferred_order)),
+    )
+    header_contacts = ' | '.join(
+        format_header_contact_item(label, value) for label, value in ordered_entries[:5]
+    )
 
     main_sections = [summary_html, experience_html, projects_html, education_html, additional_info_html]
     main_html = "".join(part for part in main_sections if part)
@@ -563,25 +590,30 @@ def _render_resume_html(resume_data: dict[str, Any]) -> str:
         }}
         h1 {{
             margin: 0;
-            font-size: 15pt;
+            font-size: 21pt;
             font-weight: bold;
-            text-align: left;
-            line-height: 1.1;
+            text-align: center;
+            line-height: 1.05;
+            text-transform: uppercase;
         }}
         .headline {{
-            margin-top: 2px;
-            text-align: left;
-            font-size: 10.9pt;
+            margin-top: 3px;
+            text-align: center;
+            font-size: 11.2pt;
             font-weight: bold;
-            line-height: 1.2;
+            line-height: 1.15;
         }}
         .header-contact {{
-            margin-top: 2px;
-            text-align: left;
-            font-size: 9.8pt;
-            line-height: 1.2;
+            margin-top: 4px;
+            margin-bottom: 8px;
+            text-align: center;
+            font-size: 9.6pt;
+            line-height: 1.25;
             word-wrap: break-word;
+            border-bottom: 1px solid #555555;
+            padding-bottom: 6px;
         }}
+
         .section {{
             margin-top: 14px;
         }}
@@ -593,6 +625,8 @@ def _render_resume_html(resume_data: dict[str, Any]) -> str:
             padding-bottom: 2px;
             margin-bottom: 6px;
             line-height: 1.1;
+            page-break-after: avoid;
+            -pdf-keep-with-next: true;
         }}
         .summary {{
             margin: 0;
@@ -600,7 +634,11 @@ def _render_resume_html(resume_data: dict[str, Any]) -> str:
             word-wrap: break-word;
         }}
         .exp-item {{
-            margin-bottom: 10px;
+            margin-bottom: 24px;
+        }}
+        .exp-spacer {{
+            font-size: 5pt;
+            line-height: 5pt;
         }}
         .exp-head {{
             width: 100%;
@@ -663,18 +701,22 @@ def _render_resume_html(resume_data: dict[str, Any]) -> str:
             font-weight: bold;
         }}
         .edu-item {{
-            margin-bottom: 6px;
+            margin-bottom: 4px;
+            page-break-inside: avoid;
         }}
         .edu-head {{
             width: 100%;
             border-collapse: collapse;
             table-layout: fixed;
+            margin: 0;
         }}
         .edu-school {{
             width: 72%;
             vertical-align: top;
             font-weight: bold;
             font-size: 12pt;
+            line-height: 1.05;
+            padding: 0;
             word-wrap: break-word;
         }}
         .edu-location {{
@@ -683,6 +725,8 @@ def _render_resume_html(resume_data: dict[str, Any]) -> str:
             vertical-align: top;
             font-size: 10.8pt;
             font-weight: bold;
+            line-height: 1.05;
+            padding: 0;
             word-wrap: break-word;
         }}
         .edu-degree {{
@@ -691,6 +735,8 @@ def _render_resume_html(resume_data: dict[str, Any]) -> str:
             font-style: italic;
             font-weight: bold;
             font-size: 10.8pt;
+            line-height: 1.05;
+            padding: 3px 0 0 0;
             word-wrap: break-word;
         }}
         .edu-date {{
@@ -699,6 +745,8 @@ def _render_resume_html(resume_data: dict[str, Any]) -> str:
             vertical-align: top;
             font-size: 10.8pt;
             font-weight: bold;
+            line-height: 1.05;
+            padding: 2px 0 0 0;
             word-wrap: break-word;
         }}
         .contact-list {{
