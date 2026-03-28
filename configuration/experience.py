@@ -63,4 +63,25 @@ experience = {
             'Delivered tailored solutions for clients while collaborating remotely in Agile-style teams, translating requirements into working software from concept to deployment.',
         ],
     },
+    6: {
+        'company_name': 'Self-Employed',
+        'position': 'Freelance AI Engineer',
+        'duration': 'April 2024 - Present',
+        'description': [
+            'Developed AI-powered applications using OpenAI and Google Gemini APIs, creating intelligent chatbots and content generation tools.',
+            'Implemented natural language processing (NLP) techniques to enhance user interactions and automate content creation.',
+            'Optimized AI models for performance and relevance, ensuring high-quality outputs tailored to user needs.',
+            'Collaborated with clients to understand requirements and deliver customized AI solutions that drive engagement and efficiency.',
+        ],
+    },
+    7: {
+        'company_name': 'Self-Employed',
+        'position': 'Data Scientist',
+        'duration': 'January 2024 - June 2024',
+        'description': [
+            'Conducted data analysis and built predictive models to extract insights and inform decision-making for various projects.',
+            'Utilized machine learning algorithms to identify patterns and trends in datasets, providing actionable recommendations.',
+            'Created data visualizations to effectively communicate findings to stakeholders and support strategic initiatives.',
+        ],
+    },
 }
