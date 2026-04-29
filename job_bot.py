@@ -186,6 +186,21 @@ class LinkedInJobBot:
                 added_auth_cookies = set()
 
                 for cookie in cookies:
+                    # Sanitize cookie for Selenium
+                    if 'sameSite' in cookie:
+                        if cookie['sameSite'] == 'no_restriction':
+                            cookie['sameSite'] = 'None'
+                        elif cookie['sameSite'] is None:
+                            del cookie['sameSite']
+                            
+                    if 'expirationDate' in cookie:
+                        cookie['expiry'] = int(cookie['expirationDate'])
+                        del cookie['expirationDate']
+                        
+                    for k in ['hostOnly', 'session', 'storeId']:
+                        if k in cookie:
+                            del cookie[k]
+                            
                     name = cookie.get('name', 'unknown')
                     try:
                         self.driver.add_cookie(cookie)
