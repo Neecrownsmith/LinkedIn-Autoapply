@@ -136,17 +136,7 @@ def create_profile(profile_name: str):
     # 8. job_preferences.json
     job_preferences_data = {
         "keywords": [None],
-        "locations": [None],
-        "experience_levels": [None],
-        "job_types": [None],
-        "remote_options": [None],
-        "exclude_keywords": [None],
-        "max_applications_per_day": None,
-        "min_salary": None,
-        "max_salary": None,
-        "company_blacklist": [],
-        "required_skills": [None],
-        "preferred_skills": [None]
+        "locations": [None]
     }
     with open(os.path.join(profile_dir, "job_preferences.json"), "w") as f:
         json.dump(job_preferences_data, f, indent=4)

@@ -26,7 +26,7 @@ def run_for_profile(profile_path: str):
     job_title = random.choice(job_list)
     logger.info(f"Using job title: {job_title} for profile {profile_path}")
 
-    bot = LinkedInJobBot(profile_path=profile_path, headless=False)
+    bot = LinkedInJobBot(profile_path=profile_path, headless=True)
     if bot.login():
         selected_jobs = []
         if bot.search_jobs(keyword=job_title, time_filter=1800):
