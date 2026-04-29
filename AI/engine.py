@@ -15,14 +15,15 @@ from AI.prompt import (
 preferred_llm = os.getenv("PREFERRED_LLM", "gemini").lower()
 
 
-def answer_job_question(job_description: str, job_question_schema: Any) -> str:
+def answer_job_question(job_description: str, job_question_schema: Any, information_bank: dict = None) -> str:
     """High-level helper used by the bot.
 
     Loads configuration/* as the information bank, builds prompts, calls Gemini,
     and returns a plain-text answer.
     """
     if preferred_llm == "gemini":
-        information_bank = load_information_bank()
+        if information_bank is None:
+            information_bank = load_information_bank()
         user_prompt = generate_user_prompt(job_description, information_bank, job_question_schema)
 
         client = GeminiClient()
@@ -48,12 +49,13 @@ def _extract_json_object(text: str) -> str:
     return raw
 
 
-def generate_tailored_resume_data(job_description: str) -> dict[str, Any]:
+def generate_tailored_resume_data(job_description: str, information_bank: dict = None) -> dict[str, Any]:
     """Generate structured resume data tailored to a job description."""
     if preferred_llm != "gemini":
         return {}
 
-    information_bank = load_information_bank()
+    if information_bank is None:
+        information_bank = load_information_bank()
     user_prompt = generate_resume_user_prompt(job_description, information_bank)
 
     client = GeminiClient()

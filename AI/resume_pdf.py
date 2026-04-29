@@ -123,11 +123,10 @@ def _format_date_range(start: str, end: str) -> str:
     return start_text or end_text
 
 
-def _load_personal_fallback() -> dict[str, str]:
-    try:
-        personal_mod = importlib.import_module("configuration.personal")
-    except Exception:
-        return {}
+def _load_personal_fallback(resume_data: dict[str, Any] = None) -> dict[str, str]:
+    fallback = {}
+    if resume_data and "_fallback_info" in resume_data:
+        fallback = resume_data["_fallback_info"].get("personal", {})
 
     keys = [
         "email_address",
@@ -144,7 +143,7 @@ def _load_personal_fallback() -> dict[str, str]:
 
     out: dict[str, str] = {}
     for key in keys:
-        value = getattr(personal_mod, key, "")
+        value = fallback.get(key, "")
         text = _text(value)
         if text:
             out[key] = text
@@ -156,7 +155,7 @@ def _build_contact_items(resume_data: dict[str, Any]) -> list[str]:
 
 
 def _build_contact_entries(resume_data: dict[str, Any]) -> list[tuple[str, str]]:
-    fallback = _load_personal_fallback()
+    fallback = _load_personal_fallback(resume_data)
     contact_data = resume_data.get("contact")
     contact_dict = contact_data if isinstance(contact_data, dict) else {}
 
@@ -282,7 +281,7 @@ def _normalize_projects(project_items: Any) -> list[dict[str, Any]]:
 
 
 def _build_additional_lines(resume_data: dict[str, Any], skills: list[str]) -> list[tuple[str, str]]:
-    fallback = _load_personal_fallback()
+    fallback = _load_personal_fallback(resume_data)
 
     def joined(values: Any, limit: int = 20, sep: str = ", ") -> str:
         rows = _to_lines(values)[:limit]
@@ -862,11 +861,13 @@ def _try_render_html_to_pdf(html_content: str, out_path: Path) -> bool:
 
 
 
-def render_resume_pdf(resume_data: dict[str, Any], output_path: str) -> str:
+def render_resume_pdf(resume_data: dict[str, Any], output_path: str, fallback_info: dict = None) -> str:
     """Render structured resume JSON into a professional PDF using HTML/CSS.
 
     Returns the absolute path to the created PDF.
     """
+    if fallback_info:
+        resume_data["_fallback_info"] = fallback_info
     out_path = Path(output_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 

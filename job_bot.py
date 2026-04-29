@@ -31,23 +31,45 @@ tailor_resume = os.getenv("TAILOR_RESUME", "no").lower() in ["true","yes"]
 class LinkedInJobBot:
     """LinkedIn Job Application Automation Bot with Local ChromeDriver"""
     
-    def __init__(self, headless: bool = False):
+    def __init__(self, profile_path: str, headless: bool = False):
         """
         Initialize LinkedIn Job Bot
         
         Args:
+            profile_path: Path to user profile directory
             headless: Run browser in headless mode
-            chromedriver_path: Path to ChromeDriver executable
         """
+        self.profile_path = profile_path
         self.url = "https://www.linkedin.com/"
         self.jobs_url = "https://www.linkedin.com/jobs/"
-        self.email = os.getenv('LINKEDIN_EMAIL')
-        self.password = os.getenv('LINKEDIN_PASSWORD')
+        
+        config_file = os.path.join(self.profile_path, "config.json")
+        try:
+            with open(config_file, 'r') as f:
+                self.config = json.load(f)
+        except Exception:
+            self.config = {}
+            
+        self.email = self.config.get('email', os.getenv('LINKEDIN_EMAIL'))
+        self.password = self.config.get('password', os.getenv('LINKEDIN_PASSWORD'))
         self.driver = None
         self.headless = headless
-        self.cookies_file = "linkedin_cookies.json"
-        self.chrome_version = os.getenv('CHROME_VERSION')  # Read from .env
+        self.cookies_file = os.path.join(self.profile_path, "linkedin_cookies.json")
+        self.chrome_version = os.getenv('CHROME_VERSION')  # Global config
         self.wait = None  # Will be set after driver is initialized
+        
+        # Load personal info to pass to AI engine and for fallback values
+        self.personal_info = {}
+        config_dir = os.path.join(self.profile_path, "configuration")
+        if os.path.isdir(config_dir):
+            for file_name in os.listdir(config_dir):
+                if file_name.endswith(".json"):
+                    key = file_name[:-5]
+                    try:
+                        with open(os.path.join(config_dir, file_name), 'r') as f:
+                            self.personal_info[key] = json.load(f)
+                    except Exception as e:
+                        logger.warning(f"Failed to load {file_name}: {e}")
 
 
     def setup_driver(self):
@@ -644,18 +666,18 @@ class LinkedInJobBot:
         default_dob = ""
 
         try:
-            from configuration import personal as personal_cfg  # type: ignore
+            personal_cfg = self.personal_info.get("personal", {})
 
-            default_first_name = (getattr(personal_cfg, "first_name", "") or "").strip()
-            default_last_name = (getattr(personal_cfg, "last_name", "") or "").strip()
-            default_email = (getattr(personal_cfg, "email_address", "") or default_email or "").strip()
-            default_phone = (getattr(personal_cfg, "phone_number", "") or "").strip()
-            default_country = (getattr(personal_cfg, "country", "") or "").strip()
-            default_city = (getattr(personal_cfg, "current_city", "") or "").strip()
-            default_street = (getattr(personal_cfg, "street", "") or "").strip()
-            default_state = (getattr(personal_cfg, "state", "") or "").strip()
-            default_zip = (getattr(personal_cfg, "zipcode", "") or "").strip()
-            default_dob = (getattr(personal_cfg, "date_of_birth", "") or "").strip()
+            default_first_name = (personal_cfg.get("first_name", "") or "").strip()
+            default_last_name = (personal_cfg.get("last_name", "") or "").strip()
+            default_email = (personal_cfg.get("email_address", "") or default_email or "").strip()
+            default_phone = (personal_cfg.get("phone_number", "") or "").strip()
+            default_country = (personal_cfg.get("country", "") or "").strip()
+            default_city = (personal_cfg.get("current_city", "") or "").strip()
+            default_street = (personal_cfg.get("street", "") or "").strip()
+            default_state = (personal_cfg.get("state", "") or "").strip()
+            default_zip = (personal_cfg.get("zipcode", "") or "").strip()
+            default_dob = (personal_cfg.get("date_of_birth", "") or "").strip()
         except Exception:
             # If personal config isn't importable, just continue with env/placeholder defaults.
             pass
@@ -2071,13 +2093,15 @@ class LinkedInJobBot:
                 form_schema = self.get_form_questions()
                 resume_pdf_path = None
                 if tailor_resume:
-                    resume_data = generate_tailored_resume_data(job_description or "")
+                    resume_data = generate_tailored_resume_data(job_description or "", self.personal_info)
                     if resume_data:
-                        safe_job_id = "".join(ch for ch in str(job_id) if ch.isalnum() or ch in ("-", "_")) or "job"
-                        # output_path = os.path.join("generated_resumes", f"tailored_resume_{safe_job_id}.pdf")
-                        output_path = os.path.join("resume","generated_resumes", f"FAJEMISIN_ADENIYI_RESUME.pdf")
+                        output_dir = os.path.join(self.profile_path, "resume", "generated_resumes")
+                        os.makedirs(output_dir, exist_ok=True)
+                        first = self.personal_info.get("personal", {}).get("first_name", "CANDIDATE")
+                        last = self.personal_info.get("personal", {}).get("last_name", "RESUME")
+                        output_path = os.path.join(output_dir, f"{first}_{last}.pdf".replace(" ", "_").upper())
                         try:
-                            resume_pdf_path = render_resume_pdf(resume_data, output_path)
+                            resume_pdf_path = render_resume_pdf(resume_data, output_path, self.personal_info)
                             logger.info(f"Tailored resume generated: {resume_pdf_path}")
                         except Exception as resume_error:
                             logger.warning(f"Failed to generate tailored resume PDF: {resume_error}")
@@ -2086,7 +2110,7 @@ class LinkedInJobBot:
                 else:
                     logger.info("TAILOR_RESUME is disabled; skipping tailored resume generation.")
 
-                form_answer = answer_job_question(job_description, form_schema)
+                form_answer = answer_job_question(job_description, form_schema, self.personal_info)
                 form_filled = self.fill_form_questions(form_answer, resume_pdf_path=resume_pdf_path)
                 submitted = False
                 if form_filled:
