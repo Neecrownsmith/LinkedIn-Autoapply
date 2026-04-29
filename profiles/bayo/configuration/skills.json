@@ -1,0 +1,14 @@
+{
+    "skillset": {
+        "Python": 5,
+        "Django": 3,
+        "SQL": 4,
+        "Machine Learning": 2,
+        "TensorFlow / PyTorch": 2,
+        "Data Visualization": 3,
+        "Cloud platforms (AWS, Azure, GCP)": 2,
+        "Data Science": 3,
+        "Backend Development": 4,
+        "Software Development": 5
+    }
+}
