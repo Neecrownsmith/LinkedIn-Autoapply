@@ -76,6 +76,7 @@ LINKEDIN_PASSWORD=your_password
 GEMINI_API_KEY=your_gemini_api_key
 # or GOOGLE_API_KEY=your_google_api_key
 GEMINI_MODEL=gemini-1.5-flash
+GEMINI_MODE=standard
 PREFERRED_LLM=gemini
 
 # Resume tailoring toggle
@@ -87,6 +88,7 @@ CHROME_VERSION=
 
 Notes:
 - `TAILOR_RESUME=yes` enables tailored resume generation and upload.
+- `GEMINI_MODE=standard` uses the Gemini API key, while `GEMINI_MODE=vertex` uses Vertex AI with `PROJECT_ID`, `LOCATION`, and `GOOGLE_CREDENTIALS`.
 - If Gemini key is missing and AI paths are used, generation will fail.
 
 ## Configuration Data

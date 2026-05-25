@@ -2,6 +2,7 @@ import os
 import json
 import re
 from typing import Any
+from dotenv import load_dotenv
 
 from AI.gemini import GeminiClient
 from AI.prompt import (
@@ -12,7 +13,11 @@ from AI.prompt import (
     resume_system_prompt,
 )
 
-preferred_llm = os.getenv("PREFERRED_LLM", "gemini").lower()
+load_dotenv()
+
+
+def _preferred_llm() -> str:
+    return os.getenv("PREFERRED_LLM", "gemini").lower()
 
 
 def answer_job_question(job_description: str, job_question_schema: Any, information_bank: dict = None) -> str:
@@ -21,7 +26,7 @@ def answer_job_question(job_description: str, job_question_schema: Any, informat
     Loads configuration/* as the information bank, builds prompts, calls Gemini,
     and returns a plain-text answer.
     """
-    if preferred_llm == "gemini":
+    if _preferred_llm() == "gemini":
         if information_bank is None:
             information_bank = load_information_bank()
         user_prompt = generate_user_prompt(job_description, information_bank, job_question_schema)
@@ -51,7 +56,7 @@ def _extract_json_object(text: str) -> str:
 
 def generate_tailored_resume_data(job_description: str, information_bank: dict = None) -> dict[str, Any]:
     """Generate structured resume data tailored to a job description."""
-    if preferred_llm != "gemini":
+    if _preferred_llm() != "gemini":
         return {}
 
     if information_bank is None:
