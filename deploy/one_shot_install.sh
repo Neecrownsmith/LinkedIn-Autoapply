@@ -100,7 +100,7 @@ if should_skip_step "Installing System Dependencies (python3-venv, pip)"; then
 else
   echo "Updating package index and installing base dependencies..."
   apt-get update
-  apt-get install -y python3-venv python3-pip python3-dev wget curl unzip git nano
+  apt-get install -y python3-venv python3-pip python3-dev wget curl unzip git nano pkg-config libcairo2-dev libjpeg-dev zlib1g-dev
   echo "Installing system shared libraries required for headless Chrome..."
   apt-get install -y libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libasound2 libpango-1.0-0 libcairo2 || true
 fi
@@ -135,13 +135,29 @@ else
         echo 'Installing requirements.txt dependencies...'
         pip install -r requirements.txt
       fi
+      
+      if [[ -f .venv/bin/playwright ]]; then
+        echo 'Installing Playwright headless browser binaries...'
+        .venv/bin/playwright install chromium
+      fi
+      
       touch venv_ok
     else
       echo 'Virtualenv (.venv) already exists. Upgrading dependencies...'
       . .venv/bin/activate
       pip install --upgrade pip -r requirements.txt
+      
+      if [[ -f .venv/bin/playwright ]]; then
+        echo 'Ensuring Playwright headless browser binaries are installed...'
+        .venv/bin/playwright install chromium
+      fi
     fi
   "
+  # Install Playwright system dependencies as root if it exists
+  if [[ -f "$PROJECT_ROOT/.venv/bin/playwright" ]]; then
+    echo "Installing system dependencies for Playwright browser..."
+    "$PROJECT_ROOT"/.venv/bin/playwright install-deps chromium || true
+  fi
 fi
 
 # 7. Configure Environment Variables
