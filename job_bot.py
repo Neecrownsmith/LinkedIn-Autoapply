@@ -107,7 +107,7 @@ class LinkedInJobBot:
         """
         try:
             options = webdriver.ChromeOptions()
-            options.page_load_strategy = 'eager'
+            options.page_load_strategy = 'none'
             options.add_argument('--window-size=1920,1080')
             options.add_argument('--no-sandbox')
             options.add_argument('--disable-dev-shm-usage')
@@ -570,8 +570,8 @@ class LinkedInJobBot:
             logger.info(f"Navigating to search URL: {search_url}")
             self.driver.get(search_url)
 
-            # Wait for at least one job card to appear (by XPath)
-            self.wait.until(
+            # Wait for at least one job card to appear (by XPath) - up to 30 seconds
+            WebDriverWait(self.driver, 30).until(
                 EC.presence_of_element_located(
                     (
                         By.XPATH,
@@ -584,6 +584,17 @@ class LinkedInJobBot:
             return True
         except Exception as e:
             logger.error(f"Failed to search jobs: {str(e)}")
+            try:
+                screenshot_path = os.path.join(self.profile_path, "search_failed.png")
+                self.driver.save_screenshot(screenshot_path)
+                logger.info(f"Saved failure screenshot to: {screenshot_path}")
+                
+                source_path = os.path.join(self.profile_path, "search_failed.html")
+                with open(source_path, "w", encoding="utf-8") as f:
+                    f.write(self.driver.page_source)
+                logger.info(f"Saved failure HTML source to: {source_path}")
+            except Exception as d_err:
+                logger.warning(f"Could not capture failure debug files: {d_err}")
             return False
 
     def select_jobs(self, max_job=5):
