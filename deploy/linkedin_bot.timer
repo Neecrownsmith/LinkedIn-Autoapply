@@ -1,0 +1,12 @@
+[Unit]
+Description=Timer to trigger LinkedIn Auto-Apply Bot every 30 minutes
+
+[Timer]
+# Triggers every 30 minutes (e.g. 10:00, 10:30, 11:00...)
+OnCalendar=*:0/30
+# If the server was shut down and missed a trigger, run it immediately on boot
+Persistent=true
+Unit=linkedin_bot.service
+
+[Install]
+WantedBy=timers.target

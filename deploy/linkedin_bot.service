@@ -1,0 +1,13 @@
+[Unit]
+Description=LinkedIn Auto-Apply Bot
+After=network.target
+
+[Service]
+Type=oneshot
+User=botuser
+WorkingDirectory=/home/botuser/LinkedIn-Autoapply
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/bin/bash /home/botuser/LinkedIn-Autoapply/deploy/launch_bot.sh
+LimitNOFILE=4096
+
+# Note: No [Install] section here as it is triggered by the systemd timer.
