@@ -7,9 +7,8 @@ cd "/home/botuser/LinkedIn-Autoapply"
 # Check if the virtual environment exists and activate it
 if [ -d ".venv" ]; then
     source .venv/bin/activate
+    python main.py
 else
-    echo "Warning: Virtual environment (.venv) not found. Running with system python."
+    echo "Warning: Virtual environment (.venv) not found. Running with system python3."
+    python3 main.py
 fi
-
-# Execute the orchestrator python script
-python main.py
