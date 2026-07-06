@@ -28,6 +28,32 @@ logger = logging.getLogger(__name__)
 tailor_resume = os.getenv("TAILOR_RESUME", "no").lower() in ["true","yes"]
 
 
+def format_tailored_resume_text(resume_data):
+    if not resume_data:
+        return ""
+    lines = []
+    
+    # Extract summary
+    summary = resume_data.get("summary") or resume_data.get("personal", {}).get("summary")
+    if summary:
+        lines.append(f"SUMMARY:\n{summary}\n")
+        
+    # Extract work experience
+    work = resume_data.get("work_experience") or resume_data.get("experience", [])
+    if work:
+        lines.append("WORK EXPERIENCE:")
+        for job in work:
+            company = job.get("company", "Company")
+            role = job.get("role", "Role")
+            lines.append(f"[{role} at {company}]")
+            bullets = job.get("bullets", [])
+            for b in bullets:
+                lines.append(f"- {b}")
+            lines.append("")
+            
+    return "\n".join(lines).strip()
+
+
 class LinkedInJobBot:
     """LinkedIn Job Application Automation Bot with Local ChromeDriver"""
     
@@ -2133,6 +2159,7 @@ class LinkedInJobBot:
                 form_schema = self.get_form_questions()
                 resume_pdf_path = None
                 self._pdf_to_delete = None
+                tailored_cv_text = ""
                 if tailor_resume:
                     resume_data = generate_tailored_resume_data(job_description or "", self.personal_info)
                     if resume_data:
@@ -2148,17 +2175,21 @@ class LinkedInJobBot:
                             rendered_path = render_resume_pdf(resume_data, local_pdf_path, self.personal_info)
                             logger.info(f"Tailored resume rendered locally: {rendered_path}")
                             
+                            resume_pdf_path = rendered_path
+                            self._pdf_to_delete = rendered_path
+                            
+                            # Pre-format tailored text for logging
+                            tailored_cv_text = format_tailored_resume_text(resume_data)
+                            
                             import re
                             safe_company = re.sub(r'[^a-zA-Z0-9]', '', company_name or "COMPANY")[:15]
                             drive_filename = f"{first}_{last}_{safe_company}_{job_id}.pdf".replace(" ", "_").upper()
                             
                             drive_link = self._upload_to_drive(rendered_path, drive_filename)
                             if drive_link:
-                                resume_pdf_path = drive_link
-                                self._pdf_to_delete = rendered_path
+                                tailored_cv_text = drive_link
                             else:
-                                resume_pdf_path = rendered_path
-                                logger.info(f"Drive upload failed; keeping local file: {resume_pdf_path}")
+                                logger.info("Drive upload failed; logging tailored text in spreadsheet instead.")
                         except Exception as resume_error:
                             logger.warning(f"Failed to generate tailored resume PDF: {resume_error}")
                     else:
@@ -2174,13 +2205,14 @@ class LinkedInJobBot:
                     submitted = self.submit_application()
                     if submitted:
                         logger.info(f"Successfully submitted application for job {job_id}.")
-                        self._log_job_status(job_id, job_title, company_name, job_location, score, verdict, summary, "Applied", form_answer, resume_pdf_path or "")
+                        self._log_job_status(job_id, job_title, company_name, job_location, score, verdict, summary, "Applied", form_answer, tailored_cv_text)
                     else:
                         logger.info(f"Failed to submit application for job {job_id} (submit click failed).")
-                        self._log_job_status(job_id, job_title, company_name, job_location, score, verdict, summary, "Failed - Submit Click Failed", form_answer, resume_pdf_path or "")
+                        self._log_job_status(job_id, job_title, company_name, job_location, score, verdict, summary, "Failed - Submit Click Failed", form_answer, tailored_cv_text)
                 else:
                     logger.info("Form was not fully advanced to review; skipping submit click.")
-                    self._log_job_status(job_id, job_title, company_name, job_location, score, verdict, summary, "Skipped - Form Incomplete", form_answer, resume_pdf_path or "")
+                    self._log_job_status(job_id, job_title, company_name, job_location, score, verdict, summary, "Skipped - Form Incomplete", form_answer, tailored_cv_text)
+
                 
                 try:
                     print(json.dumps(form_schema, indent=2, ensure_ascii=False))
@@ -2391,7 +2423,7 @@ class LinkedInJobBot:
         headers = [
             "Date", "Profile", "Job ID", "Job Title", "Company", "Location", 
             "Match Score", "Verdict", "AI Verdict Summary", "Status", 
-            "Form Answers", "Resume Path", "Job URL"
+            "Form Answers", "Tailored CV Content", "Job URL"
         ]
 
         if sheet_id:

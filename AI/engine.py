@@ -5,6 +5,7 @@ from typing import Any
 from dotenv import load_dotenv
 
 from AI.gemini import GeminiClient
+from AI.groq import GroqClient
 from AI.prompt import (
     generate_user_prompt,
     load_information_bank,
@@ -23,21 +24,28 @@ def _preferred_llm() -> str:
     return os.getenv("PREFERRED_LLM", "gemini").lower()
 
 
+def _get_client():
+    llm = _preferred_llm()
+    if llm == "groq":
+        return GroqClient()
+    return GeminiClient()
+
+
 def answer_job_question(job_description: str, job_question_schema: Any, information_bank: dict = None) -> str:
     """High-level helper used by the bot.
 
-    Loads configuration/* as the information bank, builds prompts, calls Gemini,
+    Loads configuration/* as the information bank, builds prompts, calls LLM,
     and returns a plain-text answer.
     """
-    if _preferred_llm() == "gemini":
-        if information_bank is None:
-            information_bank = load_information_bank()
-        user_prompt = generate_user_prompt(job_description, information_bank, job_question_schema)
+    if _preferred_llm() not in {"gemini", "groq"}:
+        return "{}"
 
-        client = GeminiClient()
-        return client.generate(system_prompt, user_prompt)
+    if information_bank is None:
+        information_bank = load_information_bank()
+    user_prompt = generate_user_prompt(job_description, information_bank, job_question_schema)
 
-    return "{}"
+    client = _get_client()
+    return client.generate(system_prompt, user_prompt)
 
 
 def _extract_json_object(text: str) -> str:
@@ -59,14 +67,14 @@ def _extract_json_object(text: str) -> str:
 
 def generate_tailored_resume_data(job_description: str, information_bank: dict = None) -> dict[str, Any]:
     """Generate structured resume data tailored to a job description."""
-    if _preferred_llm() != "gemini":
+    if _preferred_llm() not in {"gemini", "groq"}:
         return {}
 
     if information_bank is None:
         information_bank = load_information_bank()
     user_prompt = generate_resume_user_prompt(job_description, information_bank)
 
-    client = GeminiClient()
+    client = _get_client()
     raw = client.generate(resume_system_prompt, user_prompt)
     candidate_json = _extract_json_object(raw)
 
@@ -92,7 +100,7 @@ def calculate_match_score(job_description: str, information_bank: dict = None) -
       - missing_keywords: list[str]
       - summary: str
     """
-    if _preferred_llm() != "gemini":
+    if _preferred_llm() not in {"gemini", "groq"}:
         return {
             "match_score": 0,
             "verdict": "Unknown",
@@ -106,7 +114,7 @@ def calculate_match_score(job_description: str, information_bank: dict = None) -
 
     user_prompt = generate_match_user_prompt(job_description, information_bank)
 
-    client = GeminiClient()
+    client = _get_client()
     raw = client.generate(match_system_prompt, user_prompt)
     candidate_json = _extract_json_object(raw)
 
