@@ -59,50 +59,66 @@ class GeminiClient:
                 print("Gemini Auth Warning: GEMINI_MODE=standard but no GEMINI_API_KEY or GOOGLE_API_KEY was found.")
 
     def generate(self, system_prompt: str, user_prompt: str) -> str:
-        try:
-            if self.client is None:
-                return ""
-
-            response = self.client.models.generate_content(
-                model=self.model,
-                contents=[
-                    system_prompt,
-                    user_prompt,
-                ],
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json"
-                ),
-            )
-
-            content = (response.text or "").strip()
-
-            if not content:
-                return ""
-
+        import time
+        max_retries = 3
+        backoff_factor = 2.0
+        
+        for attempt in range(max_retries):
             try:
-                # Clean up potential Markdown formatting if Gemini returns it
-                if content.startswith("```json"):
-                    content = content.replace("```json", "", 1).rsplit("```", 1)[0].strip()
-                elif content.startswith("```"):
-                    content = content.replace("```", "", 1).rsplit("```", 1)[0].strip()
+                if self.client is None:
+                    return ""
 
-                result = json.loads(content)
+                response = self.client.models.generate_content(
+                    model=self.model,
+                    contents=[
+                        system_prompt,
+                        user_prompt,
+                    ],
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json"
+                    ),
+                )
 
-                if isinstance(result, dict):
-                    # Try to extract common keys if it's a nested JSON
-                    for key in ("answer", "response", "text", "value"):
-                        value = result.get(key)
-                        if isinstance(value, str) and value.strip():
-                            return value.strip()
+                content = (response.text or "").strip()
 
-                return content
+                if not content:
+                    return ""
 
-            except json.JSONDecodeError:
-                return content
+                try:
+                    # Clean up potential Markdown formatting if Gemini returns it
+                    if content.startswith("```json"):
+                        content = content.replace("```json", "", 1).rsplit("```", 1)[0].strip()
+                    elif content.startswith("```"):
+                        content = content.replace("```", "", 1).rsplit("```", 1)[0].strip()
 
-        except Exception as e:
-            provider = "Vertex AI" if self.use_vertex else "Gemini API"
-            print(f"{provider} Error: {e}")
-            return ""
+                    result = json.loads(content)
+
+                    if isinstance(result, dict):
+                        # Try to extract common keys if it's a nested JSON
+                        for key in ("answer", "response", "text", "value"):
+                            value = result.get(key)
+                            if isinstance(value, str) and value.strip():
+                                return value.strip()
+
+                    return content
+
+                except json.JSONDecodeError:
+                    return content
+
+            except Exception as e:
+                err_msg = str(e).lower()
+                is_transient = "429" in err_msg or "503" in err_msg or "resource_exhausted" in err_msg or "unavailable" in err_msg or "high demand" in err_msg
+                
+                if is_transient and attempt < max_retries - 1:
+                    sleep_time = (backoff_factor ** attempt) + 1.0
+                    provider = "Vertex AI" if self.use_vertex else "Gemini API"
+                    print(f"{provider} transient error ({e}). Retrying in {sleep_time}s (Attempt {attempt+1}/{max_retries})...")
+                    time.sleep(sleep_time)
+                else:
+                    provider = "Vertex AI" if self.use_vertex else "Gemini API"
+                    print(f"{provider} final error: {e}")
+                    return ""
+        return ""
+
 
         

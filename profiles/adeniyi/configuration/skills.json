@@ -1,0 +1,19 @@
+{
+    "skillset": {
+        "Software Development": 5,
+        "Backend Development": 4,
+        "Frontend Development": 4,
+        "Python": 5,
+        "Django": 4,
+        "SQL": 4,
+        "Node.js": 3,
+        "Javascript": 3,
+        "TypeScript": 2,
+        "React": 2,
+        "Machine Learning": 2,
+        "TensorFlow / PyTorch": 2,
+        "Data Visualization": 3,
+        "Cloud platforms (AWS, Azure, GCP)": 2,
+        "Data Science": 3
+    }
+}

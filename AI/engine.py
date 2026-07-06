@@ -11,7 +11,10 @@ from AI.prompt import (
     system_prompt,
     generate_resume_user_prompt,
     resume_system_prompt,
+    generate_match_user_prompt,
+    match_system_prompt,
 )
+
 
 load_dotenv()
 
@@ -77,3 +80,54 @@ def generate_tailored_resume_data(job_description: str, information_bank: dict =
         return {}
 
     return {}
+
+
+def calculate_match_score(job_description: str, information_bank: dict = None) -> dict[str, Any]:
+    """Calculate the match score of a candidate against a job description.
+
+    Returns a dict with:
+      - match_score: int
+      - verdict: str
+      - matched_keywords: list[str]
+      - missing_keywords: list[str]
+      - summary: str
+    """
+    if _preferred_llm() != "gemini":
+        return {
+            "match_score": 0,
+            "verdict": "Unknown",
+            "matched_keywords": [],
+            "missing_keywords": [],
+            "summary": "LLM disabled"
+        }
+
+    if information_bank is None:
+        information_bank = load_information_bank()
+
+    user_prompt = generate_match_user_prompt(job_description, information_bank)
+
+    client = GeminiClient()
+    raw = client.generate(match_system_prompt, user_prompt)
+    candidate_json = _extract_json_object(raw)
+
+    try:
+        parsed = json.loads(candidate_json)
+        if isinstance(parsed, dict):
+            return {
+                "match_score": int(parsed.get("match_score", 0)),
+                "verdict": str(parsed.get("verdict", "Unknown")),
+                "matched_keywords": list(parsed.get("matched_keywords", [])),
+                "missing_keywords": list(parsed.get("missing_keywords", [])),
+                "summary": str(parsed.get("summary", ""))
+            }
+    except Exception as e:
+        print(f"Failed to parse match score JSON: {e}. Raw output was: {raw}")
+
+    return {
+        "match_score": 0,
+        "verdict": "Error Parsing",
+        "matched_keywords": [],
+        "missing_keywords": [],
+        "summary": "Failed to calculate match score"
+    }
+

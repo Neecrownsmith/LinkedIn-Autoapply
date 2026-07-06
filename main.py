@@ -27,17 +27,21 @@ def run_for_profile(profile_path: str):
     logger.info(f"Using job title: {job_title} for profile {profile_path}")
 
     bot = LinkedInJobBot(profile_path=profile_path, headless=True)
-    if bot.login():
-        selected_jobs = []
-        if bot.search_jobs(keyword=job_title, time_filter=1800):
-            # Apply to up to 5 simple one-click Easy Apply jobs
-            selected_jobs = bot.select_jobs()
-            logger.info(f"Selected Jobs: {selected_jobs}")
+    try:
+        if bot.login():
+            selected_jobs = []
+            if bot.search_jobs(keyword=job_title, time_filter=1800):
+                # Apply to up to 5 simple one-click Easy Apply jobs
+                selected_jobs = bot.select_jobs()
+                logger.info(f"Selected Jobs: {selected_jobs}")
+    
+            for job in selected_jobs:  
+                submitted = bot.apply_job(job)  # Example job ID, replace with actual ID from search results
+                if submitted:
+                    break
+    finally:
+        bot.close()
 
-        for job in selected_jobs:  
-            submitted = bot.apply_job(job)  # Example job ID, replace with actual ID from search results
-            if submitted:
-                break
 
 if __name__ == "__main__":
     profiles_dir = "profiles"

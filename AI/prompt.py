@@ -133,7 +133,12 @@ Rules:
 - `headline` must be role-only text (not a sentence), e.g. "Python Backend Developer | Data Scientist".
 - Do not include years of experience, verbs, or descriptive clauses in `headline`.
 - Headline and all other fields should be tailored to the job description, emphasizing the most relevant skills and experience from the information bank.
-
+- Write experience bullet points (`bullets` in `experience` and `description_bullets` in `projects`) using the Google XYZ Formula: "Accomplished [X] as measured by [Y], by doing [Z]".
+- Ensure every bullet point includes concrete metrics, percentages, or figures where possible, explaining the business impact of your action.
+- Strip all hiring manager red flags:
+  * Do NOT use passive language like "Responsible for", "Worked on", "Assisted with". Always start bullet points with strong, active verbs.
+  * Do NOT list basic job duties or tasks. Focus entirely on achievements and measurable results.
+  * Do NOT use generic buzzwords (e.g., "team player", "detail-oriented", "hard worker").
 
 Output schema:
 {
@@ -162,17 +167,50 @@ Output schema:
         "description_bullets": ["string"]
     }
     ]
+}
 """
 
 
 def generate_resume_user_prompt(job_description: str, information_bank: dict[str, Any]) -> str:
-        bank_json = json.dumps(information_bank or {}, indent=2, ensure_ascii=False)
+    bank_json = json.dumps(information_bank or {}, indent=2, ensure_ascii=False)
 
-        return (
-                "You are preparing a tailored resume for this job.\n\n"
-                f"JOB DESCRIPTION:\n{job_description}\n\n"
-                "INFORMATION BANK (JSON):\n"
-                f"{bank_json}\n\n"
-            "Return resume JSON that follows the schema from the system prompt. "
-            "For headline, output role labels only (e.g., 'Python Backend Developer | Data Scientist')."
-        )
+    return (
+        "You are preparing a tailored resume for this job.\n\n"
+        f"JOB DESCRIPTION:\n{job_description}\n\n"
+        "INFORMATION BANK (JSON):\n"
+        f"{bank_json}\n\n"
+        "Return resume JSON that follows the schema from the system prompt. "
+        "For headline, output role labels only (e.g., 'Python Backend Developer | Data Scientist')."
+    )
+
+
+match_system_prompt = """You are an expert recruiter evaluating how well a candidate's background matches a job description.
+
+Rules:
+- Return ONLY valid JSON. No markdown, no code fences, no commentary.
+- The output JSON must follow this exact schema:
+{
+    "match_score": 75,
+    "verdict": "Good Match",
+    "matched_keywords": ["Python", "SQL", "Docker"],
+    "missing_keywords": ["AWS Lambda", "Terraform"],
+    "summary": "The candidate has strong backend experience in Python and database design but lacks the cloud automation skills requested in AWS and Terraform."
+}
+
+Evaluation Criteria:
+- 90-100: Exceptional fit. Candidate meets or exceeds all core and preferred requirements.
+- 70-89: Good to Strong fit. Candidate meets all core requirements and has some preferred requirements.
+- 50-69: Fair fit. Candidate meets some core requirements, but lacks major skills or experience requested.
+- 0-49: Weak fit. Candidate lacks most core requirements or experience.
+"""
+
+
+def generate_match_user_prompt(job_description: str, information_bank: dict[str, Any]) -> str:
+    bank_json = json.dumps(information_bank or {}, indent=2, ensure_ascii=False)
+    return (
+        "Evaluate the candidate's fit for the job description below.\n\n"
+        f"JOB DESCRIPTION:\n{job_description}\n\n"
+        "CANDIDATE INFORMATION BANK (JSON):\n"
+        f"{bank_json}\n\n"
+        "Return a JSON object matching the requested schema."
+    )

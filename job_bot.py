@@ -16,7 +16,7 @@ import json
 from typing import Any
 from dotenv import load_dotenv
 from urllib.parse import urlencode, quote_plus
-from AI.engine import answer_job_question, generate_tailored_resume_data
+from AI.engine import answer_job_question, generate_tailored_resume_data, calculate_match_score
 from AI.resume_pdf import render_resume_pdf
 load_dotenv()
 
@@ -2079,8 +2079,9 @@ class LinkedInJobBot:
 
     def apply_job(self, job_id):
         """
-        Navigates to the job page for the given job_id, extracts the job description, and clicks the Easy Apply button if it exists.
-        Returns a tuple (easy_apply_clicked: bool, job_description: str|None)
+        Navigates to the job page for the given job_id, extracts the job description,
+        runs match scoring against user profile, and applies if match meets threshold.
+        Logs details to job_tracker.csv.
         """
         if not self.driver:
             logger.error("WebDriver is not initialized. Call login() first.")
@@ -2092,6 +2093,16 @@ class LinkedInJobBot:
         self.random_delay(2, 4)
 
         job_description = self.get_job_description()
+        
+        # Scrape job details for logging
+        job_title = self.get_job_title()
+        company_name = self.get_company_name()
+        job_location = self.get_job_location()
+        logger.info(f"Scraped details: Title='{job_title}', Company='{company_name}', Location='{job_location}'")
+
+        score = 0
+        verdict = "N/A"
+        summary = ""
 
         try:
             # Wait for the Easy Apply button to be present
@@ -2102,11 +2113,26 @@ class LinkedInJobBot:
                 ))
             )
             if easy_apply_btn and easy_apply_btn.is_displayed() and easy_apply_btn.is_enabled():
+                # Perform AI Match Scoring
+                logger.info(f"Calculating AI match score for job {job_id}...")
+                match_info = calculate_match_score(job_description or "", self.personal_info)
+                score = match_info.get("match_score", 0)
+                verdict = match_info.get("verdict", "Unknown")
+                summary = match_info.get("summary", "")
+                logger.info(f"AI Match Score: {score} | Verdict: {verdict}")
+                logger.info(f"AI Verdict Summary: {summary}")
+                threshold = int(os.getenv("MATCH_THRESHOLD", "75"))
+                if score < threshold:
+                    logger.info(f"Job {job_id} match score ({score}) is below threshold ({threshold}). Skipping apply.")
+                    self._log_job_status(job_id, job_title, company_name, job_location, score, verdict, summary, f"Skipped - Low Match ({score} < {threshold})")
+                    return False
+
                 logger.info(f"Easy Apply button found for job {job_id}, clicking...")
                 easy_apply_btn.click()
                 self.random_delay(1, 2)
                 form_schema = self.get_form_questions()
                 resume_pdf_path = None
+                self._pdf_to_delete = None
                 if tailor_resume:
                     resume_data = generate_tailored_resume_data(job_description or "", self.personal_info)
                     if resume_data:
@@ -2114,10 +2140,25 @@ class LinkedInJobBot:
                         os.makedirs(output_dir, exist_ok=True)
                         first = self.personal_info.get("personal", {}).get("first_name", "CANDIDATE")
                         last = self.personal_info.get("personal", {}).get("last_name", "RESUME")
-                        output_path = os.path.join(output_dir, f"{first}_{last}.pdf".replace(" ", "_").upper())
+                        
+                        pdf_filename = f"{first}_{last}.pdf".replace(" ", "_").upper()
+                        local_pdf_path = os.path.join(output_dir, pdf_filename)
+                        
                         try:
-                            resume_pdf_path = render_resume_pdf(resume_data, output_path, self.personal_info)
-                            logger.info(f"Tailored resume generated: {resume_pdf_path}")
+                            rendered_path = render_resume_pdf(resume_data, local_pdf_path, self.personal_info)
+                            logger.info(f"Tailored resume rendered locally: {rendered_path}")
+                            
+                            import re
+                            safe_company = re.sub(r'[^a-zA-Z0-9]', '', company_name or "COMPANY")[:15]
+                            drive_filename = f"{first}_{last}_{safe_company}_{job_id}.pdf".replace(" ", "_").upper()
+                            
+                            drive_link = self._upload_to_drive(rendered_path, drive_filename)
+                            if drive_link:
+                                resume_pdf_path = drive_link
+                                self._pdf_to_delete = rendered_path
+                            else:
+                                resume_pdf_path = rendered_path
+                                logger.info(f"Drive upload failed; keeping local file: {resume_pdf_path}")
                         except Exception as resume_error:
                             logger.warning(f"Failed to generate tailored resume PDF: {resume_error}")
                     else:
@@ -2125,13 +2166,22 @@ class LinkedInJobBot:
                 else:
                     logger.info("TAILOR_RESUME is disabled; skipping tailored resume generation.")
 
+
                 form_answer = answer_job_question(job_description, form_schema, self.personal_info)
                 form_filled = self.fill_form_questions(form_answer, resume_pdf_path=resume_pdf_path)
                 submitted = False
                 if form_filled:
                     submitted = self.submit_application()
+                    if submitted:
+                        logger.info(f"Successfully submitted application for job {job_id}.")
+                        self._log_job_status(job_id, job_title, company_name, job_location, score, verdict, summary, "Applied", form_answer, resume_pdf_path or "")
+                    else:
+                        logger.info(f"Failed to submit application for job {job_id} (submit click failed).")
+                        self._log_job_status(job_id, job_title, company_name, job_location, score, verdict, summary, "Failed - Submit Click Failed", form_answer, resume_pdf_path or "")
                 else:
                     logger.info("Form was not fully advanced to review; skipping submit click.")
+                    self._log_job_status(job_id, job_title, company_name, job_location, score, verdict, summary, "Skipped - Form Incomplete", form_answer, resume_pdf_path or "")
+                
                 try:
                     print(json.dumps(form_schema, indent=2, ensure_ascii=False))
                 except Exception:
@@ -2141,20 +2191,333 @@ class LinkedInJobBot:
                 return submitted
             else:
                 logger.info(f"Easy Apply button not clickable for job {job_id}.")
+                self._log_job_status(job_id, job_title, company_name, job_location, score, verdict, summary, "Skipped - Easy Apply Not Clickable")
                 return False
         except Exception as e:
-            logger.info(f"Easy Apply button not found for job {job_id}: {str(e)}")
+            logger.info(f"Easy Apply button not found or error occurred for job {job_id}: {str(e)}")
+            self._log_job_status(job_id, job_title, company_name, job_location, score, verdict, summary, "Skipped - Easy Apply Not Available")
             return False
 
         finally:
             logger.info(f"Finished apply_job for job {job_id}.")
-            logger.info("Closing driver...")
-            self.driver.quit()
-            logger.info("Driver closed.")
+            if hasattr(self, "_pdf_to_delete") and self._pdf_to_delete:
+                try:
+                    if os.path.exists(self._pdf_to_delete):
+                        os.remove(self._pdf_to_delete)
+                        logger.info(f"Deleted local tailored resume PDF to save space: {self._pdf_to_delete}")
+                except Exception as del_err:
+                    logger.warning(f"Could not delete local PDF {self._pdf_to_delete}: {del_err}")
+                finally:
+                    self._pdf_to_delete = None
+
+
+    def close(self):
+        """Clean up the Chrome driver when the bot completes its overall run."""
+        if self.driver:
+            try:
+                logger.info("Closing driver...")
+                self.driver.quit()
+                logger.info("Driver closed.")
+            except Exception as e:
+                logger.warning(f"Error quitting driver: {e}")
+            finally:
+                self.driver = None
+
+    def _upload_to_drive(self, local_pdf_path, filename):
+        """Uploads the local PDF resume to Google Drive under 'LinkedIn Resumes/[profile_name]' folder.
+        Returns the webViewLink if successful, or None.
+        """
+        try:
+            from googleapiclient.discovery import build
+            from googleapiclient.http import MediaFileUpload
+            from google.oauth2 import service_account
+            
+            sa_path = "service_account.json"
+            if not os.path.exists(sa_path):
+                return None
+                
+            scopes = [
+                "https://www.googleapis.com/auth/drive.file",
+                "https://www.googleapis.com/auth/drive"
+            ]
+            creds = service_account.Credentials.from_service_account_file(sa_path, scopes=scopes)
+            drive_service = build("drive", "v3", credentials=creds)
+            
+            # 1. Resolve or create "LinkedIn Resumes" parent folder
+            parent_folder_id = None
+            query_parent = "name = 'LinkedIn Resumes' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+            results_parent = drive_service.files().list(q=query_parent, fields="files(id)").execute()
+            files_parent = results_parent.get("files", [])
+            
+            if files_parent:
+                parent_folder_id = files_parent[0]["id"]
+            else:
+                folder_metadata = {
+                    "name": "LinkedIn Resumes",
+                    "mimeType": "application/vnd.google-apps.folder"
+                }
+                folder = drive_service.files().create(body=folder_metadata, fields="id").execute()
+                parent_folder_id = folder.get("id")
+                
+            # 2. Resolve or create profile subfolder inside "LinkedIn Resumes"
+            profile_name = os.path.basename(self.profile_path or "default")
+            profile_folder_id = None
+            query_profile = f"name = '{profile_name}' and mimeType = 'application/vnd.google-apps.folder' and '{parent_folder_id}' in parents and trashed = false"
+            results_profile = drive_service.files().list(q=query_profile, fields="files(id)").execute()
+            files_profile = results_profile.get("files", [])
+            
+            if files_profile:
+                profile_folder_id = files_profile[0]["id"]
+            else:
+                folder_metadata = {
+                    "name": profile_name,
+                    "mimeType": "application/vnd.google-apps.folder",
+                    "parents": [parent_folder_id]
+                }
+                folder = drive_service.files().create(body=folder_metadata, fields="id").execute()
+                profile_folder_id = folder.get("id")
+
+            # 3. Create the file inside the profile subfolder
+            file_metadata = {
+                "name": filename,
+                "mimeType": "application/pdf",
+                "parents": [profile_folder_id]
+            }
+            media = MediaFileUpload(local_pdf_path, mimetype="application/pdf", resumable=True)
+            
+            drive_file = drive_service.files().create(
+                body=file_metadata,
+                media_body=media,
+                fields="id, webViewLink"
+            ).execute()
+            
+            file_id = drive_file.get("id")
+            drive_link = drive_file.get("webViewLink")
+            
+            # Make the file readable by anyone with the link
+            try:
+                permission = {
+                    "type": "anyone",
+                    "role": "reader"
+                }
+                drive_service.permissions().create(
+                    fileId=file_id,
+                    body=permission
+                ).execute()
+            except Exception as perm_err:
+                logger.warning(f"Could not set public view permission on Drive file {file_id}: {perm_err}")
+                
+            logger.info(f"Uploaded tailored resume to Google Drive: {drive_link} (saved in LinkedIn Resumes/{profile_name}/)")
+            return drive_link
+            
+        except Exception as e:
+            logger.warning(f"Failed to upload resume to Google Drive: {e}")
+            return None
+
+
+
+    def get_job_title(self):
+        selectors = [
+            "h1.job-details-jobs-unified-top-card__job-title",
+            "h1.jobs-unified-top-card__job-title",
+            "h2.jobs-unified-top-card__job-title",
+            ".job-details-jobs-unified-top-card__job-title",
+            ".jobs-unified-top-card__job-title"
+        ]
+        for sel in selectors:
+            try:
+                elem = self.driver.find_element(By.CSS_SELECTOR, sel)
+                text = (elem.text or "").strip()
+                if text:
+                    return text
+            except Exception:
+                continue
+        return "Unknown Title"
+
+    def get_company_name(self):
+        selectors = [
+            ".job-details-jobs-unified-top-card__company-name a",
+            ".jobs-unified-top-card__company-name a",
+            ".job-details-jobs-unified-top-card__company-name",
+            ".jobs-unified-top-card__company-name",
+            ".job-details-jobs-unified-top-card__primary-description-container a"
+        ]
+        for sel in selectors:
+            try:
+                elem = self.driver.find_element(By.CSS_SELECTOR, sel)
+                text = (elem.text or "").strip()
+                if text:
+                    return text
+            except Exception:
+                continue
+        return "Unknown Company"
+
+    def get_job_location(self):
+        selectors = [
+            ".job-details-jobs-unified-top-card__primary-description-container span",
+            ".jobs-unified-top-card__bullet",
+            ".job-details-jobs-unified-top-card__bullet"
+        ]
+        for sel in selectors:
+            try:
+                elems = self.driver.find_elements(By.CSS_SELECTOR, sel)
+                for elem in elems:
+                    text = (elem.text or "").strip()
+                    if text and not any(char.isdigit() for char in text) and len(text) > 3:
+                        return text
+            except Exception:
+                continue
+        return "Unknown Location"
+
+    def _log_job_status(self, job_id, job_title, company, location, match_score, verdict, summary, status, form_answers="", resume_path=""):
+        import csv
+        import json
+        from datetime import datetime
+        
+        profile_name = os.path.basename(self.profile_path or "")
+        
+        # 1. Attempt to write to Google Sheets if ID is configured
+        sheet_id = (os.getenv("GOOGLE_SHEET_ID") or "").strip()
+        logged_to_sheets = False
+        
+        form_str = ""
+        if form_answers:
+            if isinstance(form_answers, dict):
+                form_str = json.dumps(form_answers, ensure_ascii=False)
+            else:
+                form_str = str(form_answers)
+
+        # 13-column headers
+        headers = [
+            "Date", "Profile", "Job ID", "Job Title", "Company", "Location", 
+            "Match Score", "Verdict", "AI Verdict Summary", "Status", 
+            "Form Answers", "Resume Path", "Job URL"
+        ]
+
+        if sheet_id:
+            try:
+                from googleapiclient.discovery import build
+                from google.oauth2 import service_account
+                
+                sa_path = "service_account.json"
+                if os.path.exists(sa_path):
+                    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+                    creds = service_account.Credentials.from_service_account_file(sa_path, scopes=scopes)
+                    service = build("sheets", "v4", credentials=creds)
+                    
+                    # Verify and auto-upgrade headers if needed
+                    try:
+                        result = service.spreadsheets().values().get(
+                            spreadsheetId=sheet_id,
+                            range="Sheet1!A1:M1"
+                        ).execute()
+                        rows = result.get("values", [])
+                        if not rows or len(rows[0]) < 13 or "Profile" not in rows[0]:
+                            logger.info("Upgrading Google Sheet headers to the new 13-column layout...")
+                            service.spreadsheets().values().update(
+                                spreadsheetId=sheet_id,
+                                range="Sheet1!A1:M1",
+                                valueInputOption="USER_ENTERED",
+                                body={"values": [headers]}
+                            ).execute()
+                    except Exception as header_err:
+                        logger.warning(f"Could not verify/update headers in Google Sheet: {header_err}")
+                    
+                    row_values = [
+                        "'" + datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        profile_name,
+                        job_id,
+                        job_title,
+                        company,
+                        location,
+                        int(match_score),
+                        verdict,
+                        summary,
+                        status,
+                        form_str,
+                        resume_path,
+                        f"https://www.linkedin.com/jobs/view/{job_id}/"
+                    ]
+                    
+                    body = {
+                        "values": [row_values]
+                    }
+                    
+                    service.spreadsheets().values().append(
+                        spreadsheetId=sheet_id,
+                        range="Sheet1!A:M",
+                        valueInputOption="USER_ENTERED",
+                        insertDataOption="INSERT_ROWS",
+                        body=body
+                    ).execute()
+                    
+                    logger.info(f"Successfully logged job {job_id} to Google Sheet {sheet_id}")
+                    logged_to_sheets = True
+                else:
+                    logger.warning("service_account.json not found at project root. Skipping Google Sheets logging.")
+            except Exception as sheets_err:
+                logger.warning(f"Failed to log to Google Sheets: {sheets_err}. Falling back to CSV.")
+
+        # 2. Local CSV Fallback
+        tracker_file = os.path.join(self.profile_path, "job_tracker.csv")
+        file_exists = os.path.exists(tracker_file)
+        
+        # Check if local CSV needs upgrading safely
+        needs_upgrade = False
+        if file_exists:
+            try:
+                with open(tracker_file, mode="r", encoding="utf-8") as rf:
+                    reader = csv.reader(rf)
+                    first_row = next(reader, [])
+                    if len(first_row) < 13 or "Profile" not in first_row:
+                        needs_upgrade = True
+            except Exception as csv_check_err:
+                logger.warning(f"Error checking CSV headers: {csv_check_err}")
+                
+        if needs_upgrade:
+            try:
+                os.remove(tracker_file)
+                file_exists = False
+                logger.info("Deleted outdated local CSV tracker to regenerate with 13-column layout.")
+            except Exception as csv_del_err:
+                logger.warning(f"Could not delete outdated local CSV tracker: {csv_del_err}")
+
+        row = {
+            "Date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "Profile": profile_name,
+            "Job ID": job_id,
+            "Job Title": job_title,
+            "Company": company,
+            "Location": location,
+            "Match Score": match_score,
+            "Verdict": verdict,
+            "AI Verdict Summary": summary,
+            "Status": status,
+            "Form Answers": form_str,
+            "Resume Path": resume_path,
+            "Job URL": f"https://www.linkedin.com/jobs/view/{job_id}/"
+        }
+        
+        try:
+            with open(tracker_file, mode="a", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(f, fieldnames=headers)
+                if not file_exists:
+                    writer.writeheader()
+                writer.writerow(row)
+            
+            if logged_to_sheets:
+                logger.info(f"Logged job {job_id} status '{status}' to local fallback tracker {tracker_file} (Mirrored in Google Sheet).")
+            else:
+                logger.info(f"Logged job {job_id} status '{status}' to local tracker spreadsheet at {tracker_file}")
+        except Exception as e:
+            logger.warning(f"Failed to write to job_tracker.csv: {e}")
+
+
+
 
 if __name__ == "__main__":
 
-    bot = LinkedInJobBot(headless=False)
+    bot = LinkedInJobBot(profile_path="profiles/adeniyi", headless=False)
     if bot.login():
         # Example searches using URL parameters:
         # - Worldwide Python developer:
