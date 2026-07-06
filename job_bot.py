@@ -107,6 +107,7 @@ class LinkedInJobBot:
         """
         try:
             options = webdriver.ChromeOptions()
+            options.page_load_strategy = 'eager'
             options.add_argument('--window-size=1920,1080')
             options.add_argument('--no-sandbox')
             options.add_argument('--disable-dev-shm-usage')
@@ -153,6 +154,9 @@ class LinkedInJobBot:
                     logger.error(f"System ChromeDriver also failed: {path_error}")
                     raise Exception("Could not initialize ChromeDriver with any method")
                     
+
+            # Set page load timeout to 60 seconds to prevent hanging on slow telemetry
+            self.driver.set_page_load_timeout(60)
 
             # Anti-detection JS tweaks
             self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
