@@ -32,7 +32,7 @@ def run_for_profile(profile_path: str):
             selected_jobs = []
             if bot.search_jobs(keyword=job_title, time_filter=1800):
                 # Apply to up to 5 simple one-click Easy Apply jobs
-                selected_jobs = bot.select_jobs()
+                selected_jobs = bot.select_jobs(10)
                 logger.info(f"Selected Jobs: {selected_jobs}")
     
             for job in selected_jobs:  
