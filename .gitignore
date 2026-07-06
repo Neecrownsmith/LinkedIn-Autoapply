@@ -43,3 +43,5 @@ Thumbs.db
 
 
 service_account.json
+
+profiles/*/job_tracker.csv
