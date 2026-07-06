@@ -1,473 +1,132 @@
-<<<<<<< HEAD
-<<<<<<< HEAD
 # LinkedIn Auto-Apply Bot
 
-Python automation project for LinkedIn Easy Apply with AI-assisted form answering and tailored resume generation.
+An intelligent, multi-profile LinkedIn automation bot for searching jobs, calculating compatibility match scores, dynamically tailoring resume experiences, and applying via Easy Apply. Supports both **Google Gemini** and **Groq** AI backends.
 
-## What This Project Does
+---
 
-- Logs into LinkedIn with cookie reuse and checkpoint handling.
-- Searches jobs using URL filters (keywords, location scope, remote/onsite, Easy Apply, time range).
-- Prioritizes job cards by signals like top applicant and actively reviewing.
-- Opens Easy Apply, inspects form fields, and builds a schema of required inputs.
-- Uses Gemini to generate JSON answers for form questions.
-- Optionally generates a tailored resume from your configuration data and job description.
-- Uploads the generated resume into file inputs.
-- Moves through Easy Apply steps, clicks Review, then clicks Submit application.
+## 🚀 Key Features
 
-## Current Project Structure
+* **Multi-Profile Support**: Manage independent credentials, cookies, job preferences, and resume data for multiple candidates under the `profiles/` directory.
+* **Dual AI Orchestration**: Seamlessly toggle between Google Gemini (using the Google GenAI SDK) and Groq (using high-speed direct REST API calls).
+* **AI Match Scorer**: Dynamically evaluates compatibility (0–100 score, fit summary, and verdict) against target roles before applying.
+* **On-the-Fly Resume Tailoring**: Automatically drafts resume experience bullet points matching ATS keywords using the Google XYZ formula and renders them into a professional PDF.
+* **13-Column Activity Tracker**: Logs evaluations, custom resume text, and form answers directly to a Google Sheet (with auto-fallback to local `job_tracker.csv`).
+* **API Spikes Resiliency**: Built-in exponential backoff retries to handle rate limits (429) and demand spikes (503) seamlessly.
+* **Zero Local Storage Growth**: Safely cleans up temporary local PDF files post-application.
+
+---
+
+## 📁 Project Structure
 
 ```text
 .
-├── main.py
-├── job_bot.py
-├── job_preferences.json
-├── requirements.txt
-├── .env
-├── linkedin_cookies.json
+├── main.py                    # Multi-profile check loop (runs run_for_profile)
+├── job_bot.py                 # Core Selenium automation bot
+├── service_account.json       # Google Sheets service account credentials
+├── requirements.txt           # Package dependencies
+├── .env                       # Environment credentials and configurations
 ├── AI/
-│   ├── engine.py
-│   ├── gemini.py
-│   ├── prompt.py
-│   └── resume_pdf.py
-├── configuration/
-│   ├── personal.py
-│   ├── experience.py
-│   ├── education.py
-│   ├── skills.py
-│   ├── salary.py
-│   ├── eligibility.py
-│   └── feedback.txt
-└── resume/
-    └── generated_resumes/
+│   ├── engine.py              # AI orchestrator (hot-swaps LLM clients)
+│   ├── gemini.py              # Gemini client with retry backoff logic
+│   ├── groq.py                # Groq client with retry backoff logic
+│   ├── prompt.py              # System & User prompts for scoring & resume tailoring
+│   └── resume_pdf.py          # High-fidelity Playwright/xhtml2pdf resume renderer
+└── profiles/                  # Candidate folders
+    ├── adeniyi/
+    │   ├── linkedin_cookies.json  # Saved session cookies (avoids log-in alerts)
+    │   ├── job_preferences.json   # Targeted keywords and locations
+    │   ├── job_tracker.csv        # Local backup activity logs (13 columns)
+    │   ├── config.json            # Profile specific email/password overrides
+    │   └── configuration/         # Profile candidate JSON files for AI
+    │       ├── personal.json
+    │       ├── experience.json
+    │       ├── education.json
+    │       └── skills.json
+    └── bayo/
 ```
 
-## Requirements
+---
 
-- Python 3.10+
-- Google Chrome installed
-- LinkedIn account
-- Gemini API key (if using AI features)
+## 🛠️ Requirements & Setup
 
-## Installation
+### Prerequisites
+* Python 3.10+
+* Google Chrome installed
 
-1. Create and activate a virtual environment.
-2. Install dependencies:
-
+### 1. Installation
+Install the project dependencies and Playwright Chromium (used for high-fidelity resume PDF rendering):
 ```bash
 pip install -r requirements.txt
-```
-
-3. Install Playwright Chromium (used for high-fidelity HTML to PDF rendering):
-
-```bash
 python -m playwright install chromium
 ```
 
-## Environment Variables
-
-Create or update `.env` with:
-
+### 2. Configure Environment Variables (`.env`)
+Create a `.env` file in the root directory:
 ```env
+# LinkedIn Credentials
 LINKEDIN_EMAIL=your_email@example.com
 LINKEDIN_PASSWORD=your_password
 
-# AI
+# LLM Selection ("gemini" or "groq")
+PREFERRED_LLM=groq
+
+# Gemini Configuration (If using gemini)
 GEMINI_API_KEY=your_gemini_api_key
-# or GOOGLE_API_KEY=your_google_api_key
-GEMINI_MODEL=gemini-1.5-flash
+GEMINI_MODEL=gemini-2.5-flash-lite
 GEMINI_MODE=standard
-PREFERRED_LLM=gemini
 
-# Resume tailoring toggle
-TAILOR_RESUME=yes
+# Groq Configuration (If using groq)
+GROQ_API_KEY=your_groq_api_key
+GROQ_MODEL=llama-3.3-70b-versatile
 
-# Optional
-CHROME_VERSION=
+# Job Selection Gating
+MATCH_THRESHOLD=75
+TAILOR_RESUME=true
+
+# Activity Logging
+GOOGLE_SHEET_ID=your_google_sheet_id_here
+CHROME_VERSION=145.0.7632.117
 ```
 
-Notes:
-- `TAILOR_RESUME=yes` enables tailored resume generation and upload.
-- `GEMINI_MODE=standard` uses the Gemini API key, while `GEMINI_MODE=vertex` uses Vertex AI with `PROJECT_ID`, `LOCATION`, and `GOOGLE_CREDENTIALS`.
-- If Gemini key is missing and AI paths are used, generation will fail.
+### 3. Google Sheets Integration
+* Place your Google Cloud service account key as `service_account.json` in the root folder.
+* Share your target Google Sheet (using the `GOOGLE_SHEET_ID` from `.env`) with the service account client email as an **Editor**.
+* The bot will automatically check and upgrade your sheet to the 13-column layout on the first run.
 
-## Configuration Data
+---
 
-All candidate data used by the AI is loaded from `configuration/*.py`.
+## 📋 Spreadsheet Tracking Columns
+Both the Google Sheet and the local `job_tracker.csv` maintain the exact same structured data columns:
+1. **Date**: Timestamp of the evaluation.
+2. **Profile**: The candidate folder name (e.g. `adeniyi` or `bayo`).
+3. **Job ID**: LinkedIn Job Identifier.
+4. **Job Title**: The scraped role title.
+5. **Company**: Hiring organization.
+6. **Location**: Scraped role location.
+7. **Match Score**: Evaluated compatibility score (0-100).
+8. **Verdict**: Verdict description (`Strong Fit`, `Good Fit`, `Fair Fit`, `Weak Fit`).
+9. **AI Verdict Summary**: Explanatory text detailing fits and experience gaps.
+10. **Status**: Action state (`Applied`, `Skipped - Low Match`, `Skipped - Form Incomplete`).
+11. **Form Answers**: JSON dump of custom question responses filled by AI.
+12. **Tailored CV Content**: Shareable Google Drive link, or the raw formatted tailored resume text block if the service account runs into Drive storage quota constraints.
+13. **Job URL**: Link to the role on LinkedIn.
 
-Update these files before running:
-- `configuration/personal.py`
-- `configuration/experience.py`
-- `configuration/education.py`
-- `configuration/skills.py`
-- `configuration/salary.py`
-- `configuration/eligibility.py`
+---
 
-## Run
+## 🚀 Running the Bot
 
+Run the multi-profile loop:
 ```bash
 python main.py
 ```
 
-Current `main.py` flow:
-1. Initialize `LinkedInJobBot`.
-2. Login.
-3. Search jobs with `job_title`.
-4. Select prioritized jobs.
-5. Apply to the first selected job via Easy Apply flow.
-
-## Easy Apply Flow Summary
-
-In `job_bot.py`, the application path is:
-1. Open selected job and extract job description.
-2. Click Easy Apply.
-3. Extract form schema (`get_form_questions`).
-4. Generate tailored resume JSON (optional).
-5. Render PDF resume (`AI/resume_pdf.py`) and upload to file inputs.
-6. Generate LLM answers for form fields.
-7. Fill fields, click Next through steps, click Review.
-8. Click Submit application.
-
-## PDF Rendering
-
-Resume PDF generation uses this fallback order:
-1. Playwright Chromium render (best HTML/CSS fidelity)
-2. `xhtml2pdf`
-3. Minimal internal PDF writer (last-resort fallback)
-
-Generated files are saved under `resume/generated_resumes/`.
-
-## Safety and Responsibility
-
-Use responsibly and at your own risk.
-
-- Respect LinkedIn Terms of Service.
-- Keep request frequency low.
-- Prefer manual monitoring while running automation.
-- Avoid spam or abusive behavior.
-
-## Troubleshooting
-
-- Login/checkpoint loops:
-  - Delete `linkedin_cookies.json` and login again.
-- No jobs selected:
-  - Broaden keyword/time filters.
-- Resume styling mismatch:
-  - Ensure Playwright Chromium is installed.
-- Gemini errors:
-  - Verify `GEMINI_API_KEY` or `GOOGLE_API_KEY`.
-- File upload not detected:
-  - Keep `TAILOR_RESUME=yes` and verify PDF path generation in logs.
-
-## Disclaimer
-
-This repository is for educational/personal automation experiments. You are responsible for compliance with platform rules and local laws.
-=======
-# LinkedIn Automation Suite
-
-A comprehensive Python-based LinkedIn automation toolkit that provides safe, efficient, and intelligent automation for various LinkedIn activities.
-
-## 🚀 Features
-### Core Automation
-
-- **Secure Login**: Automated login with credential management
-- **People Search**: Search and extract profile information
-- **Connection Management**: Send connection requests with custom messages
-- **Content Posting**: Automated content and image posting
-- **Messaging**: Send messages to connections
-- **Engagement**: Like posts and add comments
-- **Request Management**: Accept pending connection requests
-
-### Advanced Features
-
-- **Anti-Detection**: Uses undetected-chromedriver to avoid bot detection
-- **Human-like Behavior**: Random delays and typing patterns
-- **Rate Limiting**: Built-in safety measures to respect LinkedIn limits
-- **Scheduling**: Automated task scheduling with cron-like functionality
-- **Logging**: Comprehensive logging for monitoring and debugging
-- **Error Handling**: Robust error handling and recovery
-
-## 📋 Prerequisites
-
-- Python 3.7+
-- Chrome browser installed
-- LinkedIn account
-- Valid LinkedIn credentials
-
-## 🛠️ Installation
-
-1. **Clone or download the project**
-
-   ```bash
-   git clone <repository-url>
-   cd linkedin-automation
-   ```
-
-2. **Install dependencies**
-
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Set up environment variables**
-   - Copy `env_example.txt` to `.env`
-   - Add your LinkedIn credentials:
-   ```
-   LINKEDIN_EMAIL=your_email@example.com
-   LINKEDIN_PASSWORD=your_password
-   ```
-
-## 🚀 Quick Start
-
-### Basic Usage
-
-```python
-from linkedin_advanced import AdvancedLinkedInAutomation
-
-# Initialize automation
-with AdvancedLinkedInAutomation(headless=False) as linkedin:
-    # Login
-    if linkedin.login():
-        print("Successfully logged in!")
-
-        # Search for people
-        profiles = linkedin.search_people("software engineer", "San Francisco", max_results=5)
-        for profile in profiles:
-            print(f"Name: {profile['name']}, Title: {profile['title']}")
-
-        # Like some posts
-        linkedin.like_posts(max_likes=3)
-
-        # Post content
-        linkedin.post_content("Hello LinkedIn! This is an automated post.")
-```
-
-### Advanced Usage with Scheduling
-
-```python
-from linkedin_scheduler import LinkedInScheduler, LinkedInTasks
-from linkedin_advanced import AdvancedLinkedInAutomation
-
-# Create scheduler
-scheduler = LinkedInScheduler()
-linkedin = AdvancedLinkedInAutomation(headless=False)
-
-# Add daily tasks
-scheduler.add_daily_task(
-    LinkedInTasks.daily_connection_requests,
-    "09:00",
-    linkedin,
-    max_requests=5
-)
-
-scheduler.add_daily_task(
-    LinkedInTasks.daily_engagement,
-    "14:00",
-    linkedin,
-    max_likes=10,
-    max_comments=3
-)
-
-# Start scheduler
-scheduler.start()
-```
-
-## 📁 Project Structure
-
-```
-linkedin-automation/
-├── linkedin.py                 # Basic LinkedIn automation class
-├── linkedin_advanced.py        # Advanced features and methods
-├── linkedin_scheduler.py       # Task scheduling system
-├── example_usage.py           # Usage examples and demos
-├── requirements.txt           # Python dependencies
-├── env_example.txt           # Environment variables template
-├── configuration/
-│   └── login_credentials.py  # Legacy credential storage
-└── README.md                 # This file
-```
-
-## 🔧 Configuration
-
-### Environment Variables
-
-Create a `.env` file with the following variables:
-
-```env
-LINKEDIN_EMAIL=your_email@example.com
-LINKEDIN_PASSWORD=your_password
-LINKEDIN_2FA_SECRET=your_2fa_secret_if_available
-```
-
-### Browser Options
-
-The automation supports both standard and undetected Chrome drivers:
-
-```python
-# Use undetected driver (recommended)
-linkedin = AdvancedLinkedInAutomation(use_undetected=True)
-
-# Use standard driver
-linkedin = AdvancedLinkedInAutomation(use_undetected=False)
-
-# Run in headless mode
-linkedin = AdvancedLinkedInAutomation(headless=True)
-```
-
-## 📊 Available Methods
-
-### Basic Operations
-
-- `login()` - Login to LinkedIn
-- `search_people(keywords, location, max_results)` - Search for people
-- `connect_with_person(profile_url, message)` - Send connection request
-- `post_content(content, image_path)` - Post content to feed
-- `send_message(profile_url, message)` - Send message to connection
-
-### Engagement
-
-- `like_posts(max_likes)` - Like posts in feed
-- `comment_on_posts(comments, max_comments)` - Comment on posts
-- `accept_connection_requests(max_accepts)` - Accept pending requests
-
-### Scheduling
-
-- `add_daily_task(function, time, *args, **kwargs)` - Add daily recurring task
-- `add_weekly_task(function, day, time, *args, **kwargs)` - Add weekly task
-- `add_interval_task(function, minutes, *args, **kwargs)` - Add interval task
-
-## ⚠️ Safety Guidelines
-
-### Rate Limits
-
-- **Connection Requests**: Max 100 per week
-- **Messages**: Max 20 per day
-- **Profile Views**: Max 50 per day
-- **Posts**: Max 1-2 per day
-
-### Best Practices
-
-1. **Use Random Delays**: Built-in random delays between actions
-2. **Vary Activities**: Don't repeat the same actions
-3. **Human-like Behavior**: Random typing patterns and delays
-4. **Monitor Account**: Watch for any restrictions
-5. **Take Breaks**: Don't run automation 24/7
-6. **Comply with ToS**: Always follow LinkedIn's Terms of Service
-
-## 🚨 Important Notes
-
-### Legal and Ethical Considerations
-
-- This tool is for educational and personal use only
-- Always comply with LinkedIn's Terms of Service
-- Respect other users' privacy and preferences
-- Use responsibly and don't spam or abuse the platform
-- Consider using LinkedIn's official API when possible
-
-### Detection Avoidance
-
-- The tool uses undetected-chromedriver to minimize detection
-- Random delays and human-like behavior patterns
-- Built-in rate limiting to stay within safe limits
-- Regular breaks and varied activity patterns
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-1. **Login Failed**
-
-   - Check credentials in `.env` file
-   - Ensure 2FA is disabled or handle it manually
-   - Try using undetected driver
-
-2. **Element Not Found**
-
-   - LinkedIn may have changed their UI
-   - Update selectors in the code
-   - Add more wait time
-
-3. **Rate Limited**
-
-   - Reduce automation frequency
-   - Increase delays between actions
-   - Take longer breaks
-
-4. **Chrome Driver Issues**
-   - Update Chrome browser
-   - Clear browser cache
-   - Try different driver options
-
-### Debug Mode
-
-Enable debug logging:
-
-```python
-import logging
-logging.basicConfig(level=logging.DEBUG)
-```
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## 📄 License
-
-This project is for educational purposes only. Use at your own risk and always comply with LinkedIn's Terms of Service.
-
-## ⚡ Quick Examples
-
-### Search and Connect
-
-```python
-with AdvancedLinkedInAutomation() as linkedin:
-    if linkedin.login():
-        profiles = linkedin.search_people("data scientist", max_results=5)
-        for profile in profiles:
-            linkedin.connect_with_person(profile['profile_url'], "Hi! I'd like to connect.")
-```
-
-### Daily Automation
-
-```python
-scheduler = LinkedInScheduler()
-linkedin = AdvancedLinkedInAutomation()
-
-scheduler.add_daily_task(
-    lambda: linkedin.like_posts(max_likes=5),
-    "09:00"
-)
-scheduler.start()
-```
-
-### Content Posting
-
-```python
-with AdvancedLinkedInAutomation() as linkedin:
-    if linkedin.login():
-        linkedin.post_content("Excited to share my latest project! #coding #python")
-```
-
-## 📞 Support
-
-For issues and questions:
-
-1. Check the troubleshooting section
-2. Review the code comments
-3. Check LinkedIn's current UI for changes
-4. Ensure you're following safety guidelines
-
----
-
-**Disclaimer**: This tool is for educational purposes only. Users are responsible for complying with LinkedIn's Terms of Service and applicable laws. Use at your own risk.
-#   L i n k e d I n - A u t o a p p l y 
- 
- 
->>>>>>> b8034c46f5e65e9701ae012585609b22250ae343
-=======
-# read mme
->>>>>>> fdc612105a09530712d4cb13934b418a815dd979
+### Automation Flow:
+1. Loops through all subfolders in the `profiles/` directory.
+2. Reads the profile's targeted job keywords and selects one at random.
+3. Launches a Selenium Chrome instance (reusing cookies to skip checkpoints).
+4. Searches for matching jobs posted within the last 30 minutes.
+5. For each job card:
+   - Scrapes the description and queries the chosen LLM (`PREFERRED_LLM`) for a match score.
+   - If the score is below the `MATCH_THRESHOLD`, it skips the job and logs the skip.
+   - If the score is high, it clicks **Easy Apply**, generates/formats a tailored resume PDF, uploads it, answers form questions using AI profile details, and submits the application.
+   - Once **one** job is successfully submitted per candidate profile, the loop breaks and moves to the next candidate profile to preserve rate safety.
