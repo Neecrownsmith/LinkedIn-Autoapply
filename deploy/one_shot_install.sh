@@ -101,6 +101,8 @@ else
   echo "Updating package index and installing base dependencies..."
   apt-get update
   apt-get install -y python3-venv python3-pip python3-dev wget curl unzip git nano
+  echo "Installing system shared libraries required for headless Chrome..."
+  apt-get install -y libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libasound2 libpango-1.0-0 libcairo2 || true
 fi
 
 # 5. Set permissions
@@ -116,9 +118,9 @@ else
   echo "Workspace permissions secured."
 fi
 
-# 6. Build Python Virtual Environment & Install Browsers
+# 6. Build Python Virtual Environment
 echo ""
-echo "--- STEP 6: CREATING PYTHON VIRTUAL ENVIRONMENT & BROWSERS ---"
+echo "--- STEP 6: CREATING PYTHON VIRTUAL ENVIRONMENT ---"
 if should_skip_step "Creating Python Virtual Environment (.venv)"; then
   echo "Skipped Step 6."
 else
@@ -133,22 +135,13 @@ else
         echo 'Installing requirements.txt dependencies...'
         pip install -r requirements.txt
       fi
-      
-      echo 'Installing Playwright headless browser binaries & system dependencies...'
-      playwright install chromium
-      
       touch venv_ok
     else
       echo 'Virtualenv (.venv) already exists. Upgrading dependencies...'
       . .venv/bin/activate
       pip install --upgrade pip -r requirements.txt
-      echo 'Ensuring Playwright headless browser binaries are installed...'
-      playwright install chromium
     fi
   "
-  # Install Playwright system dependencies as root (requires root privileges to install apt dependencies)
-  echo "Installing system dependencies for Playwright browser..."
-  "$PROJECT_ROOT"/.venv/bin/playwright install-deps chromium
 fi
 
 # 7. Configure Environment Variables

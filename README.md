@@ -54,10 +54,9 @@ An intelligent, multi-profile LinkedIn automation bot for searching jobs, calcul
 * Google Chrome installed
 
 ### 1. Installation
-Install the project dependencies and Playwright Chromium (used for high-fidelity resume PDF rendering):
+Install the project dependencies:
 ```bash
 pip install -r requirements.txt
-python -m playwright install chromium
 ```
 
 ### 2. Configure Environment Variables (`.env`)
