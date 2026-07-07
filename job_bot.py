@@ -130,7 +130,6 @@ class LinkedInJobBot:
 
             # Performance & Stability optimizations matching Twitter Bot setup
             options.add_argument('--disable-features=Translate,OptimizationHints,MediaRouter,FlashDeprecationWarning,SidePanelPinning,WebRtcAnonymizeUserAgentLocalAddresses,DialMediaRouteProvider,CalculateNativeWinOcclusion')
-            options.add_argument('--js-flags=--max-old-space-size=512')
             options.add_argument('--disable-site-isolation-trials')
             options.add_argument('--disable-software-rasterizer')
             options.add_argument('--prerender-from-omnibox=disabled')
@@ -138,11 +137,6 @@ class LinkedInJobBot:
             options.add_argument('--no-default-browser-check')
             options.add_argument('--disable-crash-reporter')
             options.add_argument('--disable-in-process-stack-traces')
-            options.add_argument('--aggressive-cache-discard')
-            options.add_argument('--disable-cache')
-            options.add_argument('--disable-application-cache')
-            options.add_argument('--disk-cache-size=1')
-            options.add_argument('--media-cache-size=1')
 
             # User agent
             user_agent = getattr(self, 'user_agent', None) or 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
