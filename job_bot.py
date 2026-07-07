@@ -280,7 +280,19 @@ class LinkedInJobBot:
         try:
             # Navigate to feed page to check if logged in
             self.driver.get(f"{self.url}feed/")
-            self.random_delay(3, 5)
+            
+            # Wait up to 20 seconds for the page to resolve to feed, login, or checkpoint
+            try:
+                WebDriverWait(self.driver, 20).until(
+                    lambda d: d.find_elements(By.ID, "global-nav") or \
+                              d.find_elements(By.ID, "username") or \
+                              d.find_elements(By.ID, "session_key") or \
+                              d.find_elements(By.CLASS_NAME, "global-nav") or \
+                              "checkpoint" in d.current_url.lower() or \
+                              "login" in d.current_url.lower()
+                )
+            except Exception:
+                pass
             
             current_url = self.driver.current_url.lower()
             page_source = self.driver.page_source.lower()
