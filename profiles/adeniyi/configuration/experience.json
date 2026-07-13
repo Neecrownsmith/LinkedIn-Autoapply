@@ -1,9 +1,31 @@
 {
     "experience": {
         "1": {
+            "company_name": "Self-Employed",
+            "position": "Freelance Software Engineer",
+            "duration": "January 2026 - Present",
+            "description": [
+                "Designed and implemented secure, scalable backend services and APIs using Django REST Framework, ensuring high performance and reliability.",
+                "Developed interactive, responsive user interfaces with React.js, applying modern hooks and state management for a seamless client-side experience.",
+                "Architected and maintained relational database schemas, writing optimized queries that ensured data consistency across applications.",
+                "Delivered tailored solutions for clients while collaborating remotely in Agile-style teams, translating requirements into working software from concept to deployment."
+            ]
+        },
+        "2": {
+            "company_name": "Self-Employed",
+            "position": "Freelance AI Engineer",
+            "duration": "January 2026 - Present",
+            "description": [
+                "Developed AI-powered applications using OpenAI and Google Gemini APIs, creating intelligent chatbots and content generation tools.",
+                "Implemented natural language processing (NLP) techniques to enhance user interactions and automate content creation.",
+                "Optimized AI models for performance and relevance, ensuring high-quality outputs tailored to user needs.",
+                "Collaborated with clients to understand requirements and deliver customized AI solutions that drive engagement and efficiency."
+            ]
+        },
+        "3": {
             "company_name": "Adroit Solutions Limited",
             "position": "Data Engineer / Software Engineer",
-            "duration": "June 2025 - Present",
+            "duration": "February 2025 - October 2025",
             "description": [
                 "Worked on enterprise compliance and financial crime monitoring systems used by financial institutions for AML, sanctions screening, and regulatory reporting.",
                 "Developed automation scripts for RicaSanctionCrawler, a Python-based system that retrieves global sanctions lists.",
@@ -19,10 +41,10 @@
                 "Assisted in optimizing database queries to improve reporting efficiency."
             ]
         },
-        "2": {
+        "4": {
             "company_name": "Adroit Solutions Ltd",
             "position": "Full Stack Engineer",
-            "duration": "June 2024 - June 2025",
+            "duration": "February 2025 - October 2025",
             "description": [
                 "Built anti-money laundering (AML) detection systems, integrating advanced rule-based engines to identify suspicious transactions and enhance fraud prevention.",
                 "Developed and deployed multiple web scraping tools for large-scale data extraction and processing, enabling automated ingestion of thousands of records daily.",
@@ -30,7 +52,7 @@
                 "Collaborated with cross-functional teams to deliver compliance-focused, production-ready software solutions on time."
             ]
         },
-        "3": {
+        "5": {
             "company_name": "Boston Consulting Group (BCG) - Via Forage",
             "position": "Data Science Intern (Simulation)",
             "duration": "January 2024",
@@ -50,38 +72,7 @@
                 "Performed data cleaning and exploratory data analysis (EDA) to uncover critical insights into customer satisfaction and service pain points.",
                 "Built a predictive model to classify customer behavior, providing a framework for understanding factors that directly influence purchasing decisions."
             ]
-        },
-        "5": {
-            "company_name": "Self-Employed",
-            "position": "Freelance Software Engineer",
-            "duration": "April 2022 - Present",
-            "description": [
-                "Designed and implemented secure, scalable backend services and APIs using Django REST Framework, ensuring high performance and reliability.",
-                "Developed interactive, responsive user interfaces with React.js, applying modern hooks and state management for a seamless client-side experience.",
-                "Architected and maintained relational database schemas, writing optimized queries that ensured data consistency across applications.",
-                "Delivered tailored solutions for clients while collaborating remotely in Agile-style teams, translating requirements into working software from concept to deployment."
-            ]
-        },
-        "6": {
-            "company_name": "Self-Employed",
-            "position": "Freelance AI Engineer",
-            "duration": "April 2024 - Present",
-            "description": [
-                "Developed AI-powered applications using OpenAI and Google Gemini APIs, creating intelligent chatbots and content generation tools.",
-                "Implemented natural language processing (NLP) techniques to enhance user interactions and automate content creation.",
-                "Optimized AI models for performance and relevance, ensuring high-quality outputs tailored to user needs.",
-                "Collaborated with clients to understand requirements and deliver customized AI solutions that drive engagement and efficiency."
-            ]
-        },
-        "7": {
-            "company_name": "Self-Employed",
-            "position": "Data Scientist",
-            "duration": "January 2024 - June 2024",
-            "description": [
-                "Conducted data analysis and built predictive models to extract insights and inform decision-making for various projects.",
-                "Utilized machine learning algorithms to identify patterns and trends in datasets, providing actionable recommendations.",
-                "Created data visualizations to effectively communicate findings to stakeholders and support strategic initiatives."
-            ]
         }
+        
     }
 }
