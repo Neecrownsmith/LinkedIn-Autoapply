@@ -702,19 +702,34 @@ class LinkedInJobBot:
             return None
 
         try:
-            # Wait for the job description element to be present
-            desc_elem = self.wait.until(
-                EC.presence_of_element_located((
-                    By.CSS_SELECTOR,
-                    "div.jobs-description__content div#job-details"
-                ))
-            )
-            # Get the inner HTML (preserves formatting and lists)
-            job_desc_html = desc_elem.get_attribute("innerHTML")
-            # Optionally, also get the plain text:
-            job_desc_text = desc_elem.text
-            logger.info("Job description successfully extracted.")
-            return job_desc_text.strip() if job_desc_text else job_desc_html
+            # Wait up to 15 seconds for the details panel container to load/be visible
+            try:
+                WebDriverWait(self.driver, 15).until(
+                    lambda d: d.find_element(By.CSS_SELECTOR, ".jobs-search__job-details--wrapper, .jobs-search-two-pane__details, div.jobs-details, main, body").is_displayed()
+                )
+            except Exception:
+                pass
+
+            container = self._get_details_container()
+            selectors = [
+                (By.CSS_SELECTOR, "div#job-details"),
+                (By.CSS_SELECTOR, "div.jobs-description-content__text"),
+                (By.CSS_SELECTOR, "article.jobs-description__container"),
+                (By.XPATH, ".//div[@id='job-details']"),
+                (By.XPATH, ".//*[contains(@class, 'jobs-description')]")
+            ]
+            for by, sel in selectors:
+                try:
+                    desc_elem = container.find_element(by, sel)
+                    job_desc_html = desc_elem.get_attribute("innerHTML")
+                    job_desc_text = desc_elem.text
+                    text = job_desc_text.strip() if job_desc_text else job_desc_html
+                    if text:
+                        logger.info("Job description successfully extracted.")
+                        return text
+                except Exception:
+                    continue
+            return None
         except Exception as e:
             logger.error(f"Failed to extract job description: {str(e)}")
             return None
@@ -2170,9 +2185,28 @@ class LinkedInJobBot:
         job_url = f"https://www.linkedin.com/jobs/search/?currentJobId={job_id}"
         logger.info(f"Navigating to job page: {job_url}")
         self.driver.get(job_url)
-        self.random_delay(2, 4)
+        self.random_delay(3, 5)
+
+        # Force load detail card if it is visible in the list
+        try:
+            card_xpath = f"//li[@data-occludable-job-id='{job_id}'] | //div[@data-job-id='{job_id}']"
+            card_elems = self.driver.find_elements(By.XPATH, card_xpath)
+            if card_elems:
+                logger.info(f"Clicking job card for ID {job_id} in results pane to load details...")
+                self.driver.execute_script("arguments[0].click();", card_elems[0])
+                self.random_delay(1.5, 3.0)
+        except Exception as card_err:
+            logger.warning(f"Could not click list card: {card_err}")
 
         job_description = self.get_job_description()
+        
+        # Fallback to direct job page view if description failed to extract on the search page
+        if not job_description:
+            direct_url = f"https://www.linkedin.com/jobs/view/{job_id}/"
+            logger.info(f"Job description failed to load on search page. Falling back to direct URL: {direct_url}")
+            self.driver.get(direct_url)
+            self.random_delay(3, 5)
+            job_description = self.get_job_description()
         
         # Scrape job details for logging
         job_title = self.get_job_title()
@@ -2402,17 +2436,31 @@ class LinkedInJobBot:
 
 
 
-    def get_job_title(self):
-        selectors = [
-            "h1.job-details-jobs-unified-top-card__job-title",
-            "h1.jobs-unified-top-card__job-title",
-            "h2.jobs-unified-top-card__job-title",
-            ".job-details-jobs-unified-top-card__job-title",
-            ".jobs-unified-top-card__job-title"
-        ]
-        for sel in selectors:
+    def _get_details_container(self):
+        """Helper to get the current loaded job details container element (search or direct view layout)."""
+        if not self.driver:
+            return self.driver
+        for sel in [".jobs-search__job-details--wrapper", ".jobs-search-two-pane__details", "div.jobs-details", "main", "body"]:
             try:
                 elem = self.driver.find_element(By.CSS_SELECTOR, sel)
+                if elem.is_displayed():
+                    return elem
+            except Exception:
+                continue
+        return self.driver
+
+    def get_job_title(self):
+        container = self._get_details_container()
+        selectors = [
+            (By.CSS_SELECTOR, "h1.job-details-jobs-unified-top-card__job-title"),
+            (By.CSS_SELECTOR, "h1.jobs-unified-top-card__job-title"),
+            (By.CSS_SELECTOR, "h2.jobs-unified-top-card__job-title"),
+            (By.XPATH, ".//h2[contains(@class, 'title') or contains(@class, 'job-title')]"),
+            (By.XPATH, ".//a[contains(@href, '/jobs/view/')]")
+        ]
+        for by, sel in selectors:
+            try:
+                elem = container.find_element(by, sel)
                 text = (elem.text or "").strip()
                 if text:
                     return text
@@ -2421,16 +2469,17 @@ class LinkedInJobBot:
         return "Unknown Title"
 
     def get_company_name(self):
+        container = self._get_details_container()
         selectors = [
-            ".job-details-jobs-unified-top-card__company-name a",
-            ".jobs-unified-top-card__company-name a",
-            ".job-details-jobs-unified-top-card__company-name",
-            ".jobs-unified-top-card__company-name",
-            ".job-details-jobs-unified-top-card__primary-description-container a"
+            (By.CSS_SELECTOR, ".job-details-jobs-unified-top-card__company-name a"),
+            (By.CSS_SELECTOR, ".jobs-unified-top-card__company-name a"),
+            (By.XPATH, ".//a[contains(@href, '/company/')]"),
+            (By.CSS_SELECTOR, ".jobs-unified-top-card__company-name"),
+            (By.CSS_SELECTOR, ".job-details-jobs-unified-top-card__company-name")
         ]
-        for sel in selectors:
+        for by, sel in selectors:
             try:
-                elem = self.driver.find_element(By.CSS_SELECTOR, sel)
+                elem = container.find_element(by, sel)
                 text = (elem.text or "").strip()
                 if text:
                     return text
@@ -2439,14 +2488,15 @@ class LinkedInJobBot:
         return "Unknown Company"
 
     def get_job_location(self):
+        container = self._get_details_container()
         selectors = [
-            ".job-details-jobs-unified-top-card__primary-description-container span",
-            ".jobs-unified-top-card__bullet",
-            ".job-details-jobs-unified-top-card__bullet"
+            (By.CSS_SELECTOR, ".job-details-jobs-unified-top-card__primary-description-container span"),
+            (By.CSS_SELECTOR, ".jobs-unified-top-card__bullet"),
+            (By.XPATH, ".//*[contains(@class, 'primary-description') or contains(@class, 'bullet')]")
         ]
-        for sel in selectors:
+        for by, sel in selectors:
             try:
-                elems = self.driver.find_elements(By.CSS_SELECTOR, sel)
+                elems = container.find_elements(by, sel)
                 for elem in elems:
                     text = (elem.text or "").strip()
                     if text and not any(char.isdigit() for char in text) and len(text) > 3:
