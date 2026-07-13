@@ -631,7 +631,7 @@ class LinkedInJobBot:
                     return []
                 raise wait_err
 
-            job_cards = self.driver.find_elements(By.CSS_SELECTOR, "li.scaffold-layout__list-item, li.jobs-search-results__list-item")
+            job_cards = self.driver.find_elements(By.XPATH, "//li[@data-occludable-job-id and @data-occludable-job-id != '']")
             if not job_cards:
                 logger.warning("No job cards found on the page.")
                 return []
