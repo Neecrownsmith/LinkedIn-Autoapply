@@ -621,7 +621,7 @@ class LinkedInJobBot:
             # Wait for at least one actual job card with data to be present
             try:
                 self.wait.until(
-                    EC.presence_of_element_located((By.XPATH, "//li[@data-occludable-job-id]"))
+                    EC.presence_of_element_located((By.XPATH, "//li[@data-occludable-job-id and @data-occludable-job-id != '']"))
                 )
             except Exception as wait_err:
                 # Check if there are simply no search results
