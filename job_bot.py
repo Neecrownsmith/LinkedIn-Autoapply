@@ -2570,7 +2570,7 @@ class LinkedInJobBot:
             "AI Verdict Summary": summary,
             "Status": status,
             "Form Answers": form_str,
-            "Resume Path": resume_path,
+            "Tailored CV Content": resume_path,
             "Job URL": f"https://www.linkedin.com/jobs/view/{job_id}/"
         }
         
