@@ -577,7 +577,7 @@ class LinkedInJobBot:
             self.driver.get(search_url)
 
             # Wait for at least one job card to appear (by XPath) - up to 30 seconds
-            WebDriverWait(self.driver, 30).until(
+            WebDriverWait(self.driver, 60).until(
                 EC.presence_of_element_located(
                     (
                         By.XPATH,
@@ -618,9 +618,19 @@ class LinkedInJobBot:
             return []
 
         try:
-            self.wait.until(
-                EC.presence_of_all_elements_located((By.CSS_SELECTOR, "li.scaffold-layout__list-item, li.jobs-search-results__list-item"))
-            )
+            # Wait for at least one actual job card with data to be present
+            try:
+                self.wait.until(
+                    EC.presence_of_element_located((By.XPATH, "//li[@data-occludable-job-id]"))
+                )
+            except Exception as wait_err:
+                # Check if there are simply no search results
+                page_source = self.driver.page_source.lower()
+                if any(x in page_source for x in ["no matching jobs found", "no jobs found", "try adjusting your filters"]):
+                    logger.info("No jobs found matching the search criteria (0 results).")
+                    return []
+                raise wait_err
+
             job_cards = self.driver.find_elements(By.CSS_SELECTOR, "li.scaffold-layout__list-item, li.jobs-search-results__list-item")
             if not job_cards:
                 logger.warning("No job cards found on the page.")
