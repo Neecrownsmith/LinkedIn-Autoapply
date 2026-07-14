@@ -115,9 +115,29 @@ def _write_minimal_pdf(lines: list[str], out_path: Path) -> str:
     return str(out_path.resolve())
 
 
+def _clean_date(date_str: str) -> str:
+    text = _text(date_str)
+    if not text:
+        return ""
+    if text.lower() in ("present", "current", "now"):
+        return "Present"
+    # Match YYYY-MM or YYYY-MM-DD
+    match = re.match(r"^(\d{4})-(\d{1,2})(?:-\d{1,2})?$", text)
+    if match:
+        year = match.group(1)
+        month_num = int(match.group(2))
+        month_name = {
+            1: "January", 2: "February", 3: "March", 4: "April",
+            5: "May", 6: "June", 7: "July", 8: "August",
+            9: "September", 10: "October", 11: "November", 12: "December"
+        }.get(month_num)
+        if month_name:
+            return f"{month_name} {year}"
+    return text.capitalize() if len(text) < 10 and text.isalpha() else text
+
 def _format_date_range(start: str, end: str) -> str:
-    start_text = _text(start)
-    end_text = _text(end)
+    start_text = _clean_date(start)
+    end_text = _clean_date(end)
     if start_text and end_text:
         return f"{start_text} - {end_text}"
     return start_text or end_text
