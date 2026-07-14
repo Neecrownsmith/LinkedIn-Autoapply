@@ -2364,20 +2364,22 @@ class LinkedInJobBot:
             drive_service = build("drive", "v3", credentials=creds)
             
             # 1. Resolve or create "LinkedIn Resumes" parent folder
-            parent_folder_id = None
-            query_parent = "name = 'LinkedIn Resumes' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
-            results_parent = drive_service.files().list(q=query_parent, fields="files(id)").execute()
-            files_parent = results_parent.get("files", [])
+            parent_folder_id = (os.getenv("GOOGLE_DRIVE_FOLDER_ID") or "").strip()
             
-            if files_parent:
-                parent_folder_id = files_parent[0]["id"]
-            else:
-                folder_metadata = {
-                    "name": "LinkedIn Resumes",
-                    "mimeType": "application/vnd.google-apps.folder"
-                }
-                folder = drive_service.files().create(body=folder_metadata, fields="id").execute()
-                parent_folder_id = folder.get("id")
+            if not parent_folder_id:
+                query_parent = "name = 'LinkedIn Resumes' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+                results_parent = drive_service.files().list(q=query_parent, fields="files(id)").execute()
+                files_parent = results_parent.get("files", [])
+                
+                if files_parent:
+                    parent_folder_id = files_parent[0]["id"]
+                else:
+                    folder_metadata = {
+                        "name": "LinkedIn Resumes",
+                        "mimeType": "application/vnd.google-apps.folder"
+                    }
+                    folder = drive_service.files().create(body=folder_metadata, fields="id").execute()
+                    parent_folder_id = folder.get("id")
                 
             # 2. Resolve or create profile subfolder inside "LinkedIn Resumes"
             profile_name = os.path.basename(self.profile_path or "default")
