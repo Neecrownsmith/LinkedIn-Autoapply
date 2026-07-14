@@ -42,7 +42,7 @@
             ]
         },
         "4": {
-            "company_name": "Adroit Solutions Ltd",
+            "company_name": "Adroit Solutions Limited",
             "position": "Full Stack Engineer",
             "duration": "February 2025 - October 2025",
             "description": [
@@ -73,6 +73,5 @@
                 "Built a predictive model to classify customer behavior, providing a framework for understanding factors that directly influence purchasing decisions."
             ]
         }
-        
     }
 }
