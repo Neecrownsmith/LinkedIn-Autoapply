@@ -2343,6 +2343,47 @@ class LinkedInJobBot:
             finally:
                 self.driver = None
 
+    @staticmethod
+    def _get_google_credentials(scopes):
+        """
+        Attempts to load Google Service Account credentials from:
+        1. Local service_account.json file
+        2. GOOGLE_CREDENTIALS environment variable (JSON string)
+        3. GOOGLE_APPLICATION_CREDENTIALS environment variable (file path)
+        """
+        try:
+            from google.oauth2 import service_account
+            
+            # 1. Try local service_account.json file
+            sa_path = "service_account.json"
+            if os.path.exists(sa_path):
+                try:
+                    return service_account.Credentials.from_service_account_file(sa_path, scopes=scopes)
+                except Exception as e:
+                    logger.warning(f"Failed to load credentials from {sa_path}: {e}")
+
+            # 2. Try GOOGLE_CREDENTIALS environment variable (raw JSON string)
+            env_creds = os.getenv("GOOGLE_CREDENTIALS")
+            if env_creds and env_creds.strip():
+                try:
+                    info = json.loads(env_creds.strip())
+                    if isinstance(info, dict):
+                        return service_account.Credentials.from_service_account_info(info, scopes=scopes)
+                except Exception as e:
+                    logger.warning(f"Failed to load credentials from GOOGLE_CREDENTIALS env var: {e}")
+
+            # 3. Try GOOGLE_APPLICATION_CREDENTIALS environment variable (file path)
+            gac_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+            if gac_path and os.path.exists(gac_path):
+                try:
+                    return service_account.Credentials.from_service_account_file(gac_path, scopes=scopes)
+                except Exception as e:
+                    logger.warning(f"Failed to load credentials from GOOGLE_APPLICATION_CREDENTIALS ({gac_path}): {e}")
+        except Exception as e:
+            logger.warning(f"Error initializing Google credentials: {e}")
+
+        return None
+
     def _upload_to_drive(self, local_pdf_path, filename):
         """Uploads the local PDF resume to Google Drive under 'LinkedIn Resumes/[profile_name]' folder.
         Returns the webViewLink if successful, or None.
@@ -2350,17 +2391,16 @@ class LinkedInJobBot:
         try:
             from googleapiclient.discovery import build
             from googleapiclient.http import MediaFileUpload
-            from google.oauth2 import service_account
             
-            sa_path = "service_account.json"
-            if not os.path.exists(sa_path):
-                return None
-                
             scopes = [
                 "https://www.googleapis.com/auth/drive.file",
                 "https://www.googleapis.com/auth/drive"
             ]
-            creds = service_account.Credentials.from_service_account_file(sa_path, scopes=scopes)
+            creds = self._get_google_credentials(scopes)
+            if not creds:
+                logger.warning("No Google credentials available. Skipping Drive upload.")
+                return None
+
             drive_service = build("drive", "v3", credentials=creds)
             
             # 1. Resolve or create "LinkedIn Resumes" parent folder
@@ -2535,12 +2575,10 @@ class LinkedInJobBot:
         if sheet_id:
             try:
                 from googleapiclient.discovery import build
-                from google.oauth2 import service_account
                 
-                sa_path = "service_account.json"
-                if os.path.exists(sa_path):
-                    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-                    creds = service_account.Credentials.from_service_account_file(sa_path, scopes=scopes)
+                scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+                creds = self._get_google_credentials(scopes)
+                if creds:
                     service = build("sheets", "v4", credentials=creds)
                     
                     # Verify and auto-upgrade headers if needed
@@ -2592,7 +2630,7 @@ class LinkedInJobBot:
                     logger.info(f"Successfully logged job {job_id} to Google Sheet {sheet_id}")
                     logged_to_sheets = True
                 else:
-                    logger.warning("service_account.json not found at project root. Skipping Google Sheets logging.")
+                    logger.warning("No Google credentials found (checked service_account.json, GOOGLE_CREDENTIALS env). Skipping Google Sheets logging.")
             except Exception as sheets_err:
                 logger.warning(f"Failed to log to Google Sheets: {sheets_err}. Falling back to CSV.")
 

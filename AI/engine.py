@@ -24,11 +24,29 @@ def _preferred_llm() -> str:
     return os.getenv("PREFERRED_LLM", "gemini").lower()
 
 
-def _get_client():
-    llm = _preferred_llm()
-    if llm == "groq":
-        return GroqClient()
-    return GeminiClient()
+def _generate_with_fallback(system_prompt: str, user_prompt: str) -> str:
+    preferred = _preferred_llm()
+    primary_client = GroqClient() if preferred == "groq" else GeminiClient()
+    secondary_client = GeminiClient() if preferred == "groq" else GroqClient()
+    primary_name = "Groq" if preferred == "groq" else "Gemini"
+    secondary_name = "Gemini" if preferred == "groq" else "Groq"
+
+    # Try primary LLM first
+    result = primary_client.generate(system_prompt, user_prompt)
+    if result and result.strip():
+        return result.strip()
+
+    # If primary failed or hit rate limits, try secondary fallback
+    print(f"Primary LLM ({primary_name}) returned empty result or hit rate limit. Trying fallback LLM ({secondary_name})...")
+    try:
+        fallback_result = secondary_client.generate(system_prompt, user_prompt)
+        if fallback_result and fallback_result.strip():
+            print(f"Fallback LLM ({secondary_name}) succeeded!")
+            return fallback_result.strip()
+    except Exception as e:
+        print(f"Fallback LLM ({secondary_name}) error: {e}")
+
+    return ""
 
 
 def answer_job_question(job_description: str, job_question_schema: Any, information_bank: dict = None) -> str:
@@ -37,15 +55,11 @@ def answer_job_question(job_description: str, job_question_schema: Any, informat
     Loads configuration/* as the information bank, builds prompts, calls LLM,
     and returns a plain-text answer.
     """
-    if _preferred_llm() not in {"gemini", "groq"}:
-        return "{}"
-
     if information_bank is None:
         information_bank = load_information_bank()
     user_prompt = generate_user_prompt(job_description, information_bank, job_question_schema)
 
-    client = _get_client()
-    return client.generate(system_prompt, user_prompt)
+    return _generate_with_fallback(system_prompt, user_prompt)
 
 
 def _extract_json_object(text: str) -> str:
@@ -67,15 +81,11 @@ def _extract_json_object(text: str) -> str:
 
 def generate_tailored_resume_data(job_description: str, information_bank: dict = None) -> dict[str, Any]:
     """Generate structured resume data tailored to a job description."""
-    if _preferred_llm() not in {"gemini", "groq"}:
-        return {}
-
     if information_bank is None:
         information_bank = load_information_bank()
     user_prompt = generate_resume_user_prompt(job_description, information_bank)
 
-    client = _get_client()
-    raw = client.generate(resume_system_prompt, user_prompt)
+    raw = _generate_with_fallback(resume_system_prompt, user_prompt)
     candidate_json = _extract_json_object(raw)
 
     try:
@@ -100,22 +110,12 @@ def calculate_match_score(job_description: str, information_bank: dict = None) -
       - missing_keywords: list[str]
       - summary: str
     """
-    if _preferred_llm() not in {"gemini", "groq"}:
-        return {
-            "match_score": 0,
-            "verdict": "Unknown",
-            "matched_keywords": [],
-            "missing_keywords": [],
-            "summary": "LLM disabled"
-        }
-
     if information_bank is None:
         information_bank = load_information_bank()
 
     user_prompt = generate_match_user_prompt(job_description, information_bank)
 
-    client = _get_client()
-    raw = client.generate(match_system_prompt, user_prompt)
+    raw = _generate_with_fallback(match_system_prompt, user_prompt)
     candidate_json = _extract_json_object(raw)
 
     try:

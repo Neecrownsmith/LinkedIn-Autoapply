@@ -53,8 +53,12 @@ class GroqClient:
                 # Check for transient rate limits or server overloads (429 or 5xx)
                 if response.status_code in {429, 502, 503, 504}:
                     if attempt < max_retries - 1:
-                        sleep_time = (backoff_factor ** attempt) + 1.0
-                        print(f"Groq API status {response.status_code}. Retrying in {sleep_time}s (Attempt {attempt+1}/{max_retries})...")
+                        retry_after = response.headers.get("Retry-After")
+                        if retry_after and retry_after.replace(".", "", 1).isdigit():
+                            sleep_time = float(retry_after) + 1.0
+                        else:
+                            sleep_time = (backoff_factor ** attempt) * 2.0 + 1.0
+                        print(f"Groq API status {response.status_code}. Retrying in {sleep_time:.1f}s (Attempt {attempt+1}/{max_retries})...")
                         time.sleep(sleep_time)
                         continue
                 
