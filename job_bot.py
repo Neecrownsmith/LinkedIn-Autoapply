@@ -2428,16 +2428,19 @@ class LinkedInJobBot:
             results_profile = drive_service.files().list(q=query_profile, fields="files(id)").execute()
             files_profile = results_profile.get("files", [])
             
-            if files_profile:
-                profile_folder_id = files_profile[0]["id"]
-            else:
-                folder_metadata = {
-                    "name": profile_name,
-                    "mimeType": "application/vnd.google-apps.folder",
-                    "parents": [parent_folder_id]
-                }
-                folder = drive_service.files().create(body=folder_metadata, fields="id").execute()
-                profile_folder_id = folder.get("id")
+            try:
+                if files_profile:
+                    profile_folder_id = files_profile[0]["id"]
+                else:
+                    folder_metadata = {
+                        "name": profile_name,
+                        "mimeType": "application/vnd.google-apps.folder",
+                        "parents": [parent_folder_id]
+                    }
+                    folder = drive_service.files().create(body=folder_metadata, fields="id").execute()
+                    profile_folder_id = folder.get("id")
+            except Exception:
+                profile_folder_id = parent_folder_id
 
             # 3. Create the file inside the profile subfolder
             file_metadata = {
@@ -2473,7 +2476,11 @@ class LinkedInJobBot:
             return drive_link
             
         except Exception as e:
-            logger.warning(f"Failed to upload resume to Google Drive: {e}")
+            err_str = str(e)
+            if "storageQuotaExceeded" in err_str or "Service Accounts do not have storage quota" in err_str:
+                logger.info("Google Drive upload skipped: Service accounts on personal Google accounts do not have storage quota. Logging full tailored resume text to Google Sheets instead.")
+            else:
+                logger.warning(f"Failed to upload resume to Google Drive: {e}")
             return None
 
 
