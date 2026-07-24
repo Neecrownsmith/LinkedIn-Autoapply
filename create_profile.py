@@ -135,8 +135,12 @@ def create_profile(profile_name: str):
         
     # 8. job_preferences.json
     job_preferences_data = {
+        "_comment_keywords": "List of target job title keywords (e.g. ['Software Engineer', 'Python Developer'])",
         "keywords": [None],
-        "locations": [None]
+        "_comment_locations": "List of target locations or countries (e.g. ['Remote', 'United States', 'San Francisco'])",
+        "locations": [None],
+        "_comment_experience_levels": "Options: Internship(1), Entry level(2), Associate(3), Mid-Senior level(4), Director(5), Executive(6)",
+        "experience_levels": [None]
     }
     with open(os.path.join(profile_dir, "job_preferences.json"), "w") as f:
         json.dump(job_preferences_data, f, indent=4)

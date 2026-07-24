@@ -12,10 +12,14 @@ import json
 def run_for_profile(profile_path: str):
     preferences_file = os.path.join(profile_path, "job_preferences.json")
     job_list = []
+    experience_levels = []
+    locations_list = []
     try:
         with open(preferences_file, 'r') as f:
             preferences = json.load(f)
             job_list = [k for k in preferences.get("keywords", []) if k]
+            experience_levels = preferences.get("experience_levels") or preferences.get("experience_level") or []
+            locations_list = preferences.get("locations", [])
     except Exception as e:
         logger.warning(f"Could not load job preferences for {profile_path}: {e}")
         
@@ -24,19 +28,26 @@ def run_for_profile(profile_path: str):
         return
         
     job_title = random.choice(job_list)
-    logger.info(f"Using job title: {job_title} for profile {profile_path}")
+    logger.info(f"Using job title: '{job_title}' for profile {profile_path}")
+
+    # Resolve location if provided in preferences
+    location_scope = "worldwide"
+    if locations_list:
+        valid_locs = [l for l in locations_list if l]
+        if valid_locs:
+            location_scope = random.choice(valid_locs)
 
     bot = LinkedInJobBot(profile_path=profile_path, headless=True)
     try:
         if bot.login():
             selected_jobs = []
-            if bot.search_jobs(keyword=job_title, time_filter=1800):
-                # Apply to up to 5 simple one-click Easy Apply jobs
+            if bot.search_jobs(keyword=job_title, location_scope=location_scope, experience_level=experience_levels, time_filter=1800):
+                # Apply to up to 10 simple Easy Apply jobs
                 selected_jobs = bot.select_jobs(10)
                 logger.info(f"Selected Jobs: {selected_jobs}")
     
             for job in selected_jobs:  
-                submitted = bot.apply_job(job)  # Example job ID, replace with actual ID from search results
+                submitted = bot.apply_job(job)
                 if submitted:
                     break
     finally:

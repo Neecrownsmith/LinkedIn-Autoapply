@@ -526,7 +526,8 @@ class LinkedInJobBot:
                     remote: bool = True,
                     onsite: bool = False,
                     easy_apply: bool = True,
-                    time_filter: int = 86400):
+                    time_filter: int = 86400,
+                    experience_level: str | list[str] | None = None):
         """Search for jobs by constructing a LinkedIn Jobs URL.
 
         Uses URL parameters instead of clicking in the UI, following
@@ -538,6 +539,7 @@ class LinkedInJobBot:
         - Remote only: add f_WT=2
         - Onsite only: add f_WT=1
         - Easy apply only: add f_AL=true
+        - Experience level: add f_E=1,2,3,4,5,6 (1=Internship, 2=Entry, 3=Associate, 4=Mid-Senior, 5=Director, 6=Executive)
         """
         try:
             if not self.driver:
@@ -569,6 +571,45 @@ class LinkedInJobBot:
                 params["f_AL"] = "true"
             if time_filter:
                 params["f_TPR"] = f"r{time_filter}"
+
+            # Experience level filter mapping:
+            exp_map = {
+                "internship": "1",
+                "entry level": "2",
+                "entry": "2",
+                "junior": "2",
+                "associate": "3",
+                "mid-senior level": "4",
+                "mid-senior": "4",
+                "mid senior": "4",
+                "mid": "4",
+                "senior": "4",
+                "director": "5",
+                "executive": "6",
+                "1": "1",
+                "2": "2",
+                "3": "3",
+                "4": "4",
+                "5": "5",
+                "6": "6",
+            }
+
+            if experience_level:
+                if isinstance(experience_level, str):
+                    raw_items = [x.strip() for x in experience_level.split(",") if x.strip()]
+                elif isinstance(experience_level, list):
+                    raw_items = [str(x).strip() for x in experience_level if str(x).strip()]
+                else:
+                    raw_items = []
+
+                codes = []
+                for item in raw_items:
+                    code = exp_map.get(item.lower())
+                    if code and code not in codes:
+                        codes.append(code)
+
+                if codes:
+                    params["f_E"] = ",".join(codes)
 
             query = urlencode(params, quote_via=quote_plus)
             search_url = f"{self.jobs_url}search/?{query}"

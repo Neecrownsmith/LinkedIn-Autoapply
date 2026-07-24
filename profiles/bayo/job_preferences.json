@@ -13,5 +13,9 @@
     "San Francisco",
     "New York",
     "Remote"
+  ],
+  "experience_levels": [
+    1,
+    2
   ]
 }
